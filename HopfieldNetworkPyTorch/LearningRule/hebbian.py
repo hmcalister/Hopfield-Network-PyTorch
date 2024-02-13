@@ -7,6 +7,6 @@ class HebbianLearningRule(AbstractLearningRule):
         super().__init__()
 
     def __call__(self, states: torch.Tensor) -> torch.Tensor:
-        weightMatrix = torch.einsum("bi,bj->ij", states.T, states.T)
+        weightMatrix = states @ states.T
         weightMatrix = self._cleanupStep(weightMatrix)
         return weightMatrix

@@ -22,7 +22,7 @@ class DeltaLearningRule(AbstractLearningRule):
             steppedStates = torch.clone(states)
             self.network.stepStates(steppedStates)
 
-            self.network.weightMatrix += self.learningRate * torch.einsum("bi,bj->ij", (states-steppedStates).T, states.T)
+            self.network.weightMatrix += self.learningRate * (states-steppedStates)@states.T
             self.network.weightMatrix = self.network.weightMatrix.fill_diagonal_(0)
 
             epoch += 1
