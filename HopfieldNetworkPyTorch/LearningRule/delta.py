@@ -24,6 +24,7 @@ class DeltaLearningRule(AbstractLearningRule):
 
             self.network.weightMatrix += self.learningRate * (states-steppedStates)@states.T
             self.network.weightMatrix = self.network.weightMatrix.fill_diagonal_(0)
+            # self.network.weightMatrix = (self.network.weightMatrix + self.network.weightMatrix.T) / 2
 
             epoch += 1
             epochsProgressbar.update(1)
