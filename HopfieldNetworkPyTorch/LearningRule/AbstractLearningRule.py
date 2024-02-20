@@ -17,6 +17,8 @@ class AbstractLearningRule(ABC):
     
     def _cleanupStep(self, matrix: torch.Tensor) -> torch.Tensor:
         matrix = matrix.fill_diagonal_(0)
+        # matrix = (matrix + matrix.T) / 2
+
         matrixNorm = torch.max(matrix.abs())
         # matrixNorm = matrix.abs().sum()
         if matrixNorm > 0:
