@@ -6,4 +6,4 @@ An implementation of the Hopfield Network using PyTorch for the linear algebra c
 
 Run `pip install -e .` to install the package as editable.
 
-Use the package in any python script by importing `HopfieldNetworkPyTorch`
+Use the package in any python script by importing `HopfieldNetworkPyTorch.HopfieldNetwork` or `HopfieldNetworkPyTorch.ModernHopfieldNetwork`
