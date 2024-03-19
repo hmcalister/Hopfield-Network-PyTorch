@@ -1,0 +1,2 @@
+class ModernHopfieldNetwork():
+    pass
