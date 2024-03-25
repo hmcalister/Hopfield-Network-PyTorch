@@ -72,7 +72,7 @@ class HopfieldNetwork():
         
         :param X torch.Tensor: The states to train on, a tensor of shape (network.dimension, numStates).
         """
-        
+
         neuronOrder = np.random.permutation(self.dimension)
         for neuronIndex in neuronOrder:
             stateFields = torch.matmul(self.weightMatrix[neuronIndex], X)
