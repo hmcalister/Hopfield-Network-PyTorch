@@ -5,29 +5,23 @@ import torch
 from .LearningRule import AbstractLearningRule
 
 class HopfieldNetwork():
-    def __init__(self, dimension: int, torchDevice: str):
+    def __init__(self, dimension: int, torchDevice: str, learningRule: AbstractLearningRule):
         """
         Create a new Hopfield Network of the specified dimension.
 
-        Note before training the network, the user must manually set the value of network.learningRule to something OTHER than AbstractLearningRule
-
-        :param dimension int: The dimension of the network.
-        :param torchDevice str:  If CUDA is available, pass it here
+        :param dimension: The dimension of the network.
+        :param torchDevice:  The pytorch device to store the weight matrix on.
+        :param learningRule: The learning rule. Must implement HopfieldNetworkPyTorch.HopfieldNetwork.LearningRule.AbstractLearningRule
         """
 
         # The dimension of the network
         self.dimension = dimension
 
         # The learning rule of the network
-        self.learningRule: AbstractLearningRule
+        self.learningRule: AbstractLearningRule = learningRule
 
-        # The pytorch device to perform calculations on.
-        self.device  = torchDevice
-
-        # Maximum number of epochs when relaxing states
-        self.maxEpochs = 100
-
-        self.weightMatrix = torch.zeros(size=(dimension, dimension)).to(self.device)
+        # Initialize the weight matrix to zeros
+        self.weightMatrix = torch.zeros(size=(dimension, dimension)).to(torchDevice)
 
     def trainNetwork(self, X: torch.Tensor):
         """
@@ -40,7 +34,7 @@ class HopfieldNetwork():
     
         self.weightMatrix += self.learningRule(X)
 
-    def energyFunction(self, X: torch.Tensor) -> torch.Tensor:
+    def energy(self, X: torch.Tensor) -> torch.Tensor:
         """
         Calculate the energy of the given states. 
         Energy is given by $-0.5 W \dot X \otimes X$, i.e. the field of each neuron ($W \dot X$) elementwise multiplied by the state.
@@ -59,39 +53,42 @@ class HopfieldNetwork():
         Calculate the stability of each state given.
         Stability is determined by checking the energy of each neuron in a state. If any of the neurons in a state are unstable (E>0) that state is unstable.
         
-        :param X torch.Tensor: The states to train on, a tensor of shape (network.dimension, numStates).
+        :param X torch.Tensor: States, a tensor of shape (network.dimension, numStates).
         :returns torch.Tensor: A (numStates) tensor of booleans with each entry the stability of a state.
         """
         
-        return torch.all(self.energyFunction(X)<=0, axis=0)
+        return torch.all(self.energy(X)<=0, axis=0)
 
     def stepStates(self, X: torch.Tensor):
         """
         Step the given states by updating all neurons once.
         Note the tensor given is updated in place, so clone the tensor beforehand if required.
         
-        :param X torch.Tensor: The states to train on, a tensor of shape (network.dimension, numStates).
+        :param X torch.Tensor: States, a tensor of shape (network.dimension, numStates).
         """
 
-        neuronOrder = np.random.permutation(self.dimension)
-        for neuronIndex in neuronOrder:
+        updateOrder = np.arange(self.dimension)
+        # np.random.shuffle(updateOrder)
+
+        for neuronIndex in updateOrder:
             stateFields = torch.matmul(self.weightMatrix[neuronIndex], X)
             X[neuronIndex, stateFields<=0] = -1
             X[neuronIndex, stateFields>0] = 1
         
-    def relaxStates(self, X: torch.Tensor, verbose: bool=False):
+    def relaxStates(self, X: torch.Tensor, maxIterations: int=100, verbose: bool=False):
         """
         Relax the given states until either all states are stable, or a specified number of epochs (network.maxEpochs) is reached.
         Note the tensor given is updated in place, so clone the tensor beforehand if required.
 
-        :param X torch.Tensor: The states to train on, a tensor of shape (network.dimension, numStates).
+        :param X torch.Tensor: States, a tensor of shape (network.dimension, numStates).
+        :param maxIterations int: The maximum number of iterations to relax states for
         :param verbose bool: Boolean to show progress bar
         """
         
         epoch = 0
-        epochsProgressbar = tqdm(total=self.maxEpochs, desc="Relax States Epochs", disable=not verbose)
+        epochsProgressbar = tqdm(total=maxIterations, desc="Relax States", disable=not verbose)
         # loop while not everything is stable and the epoch is below the maximum reached
-        while not torch.all(self.stable(X)) and epoch < self.maxEpochs:
+        while not torch.all(self.stable(X)) and epoch < maxIterations:
             self.stepStates(X)
             epoch+=1
             epochsProgressbar.update(1)
