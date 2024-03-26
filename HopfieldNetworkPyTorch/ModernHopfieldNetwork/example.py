@@ -7,16 +7,18 @@ def createBipolarStates(dimension: int, nStates: int):
     X = 2*torch.heaviside(X, torch.tensor(0.0))-1
     return X
 
-
 dimension = 100
-nMemories = 12
-memories = createBipolarStates(dimension, nMemories).to(device)
-interactionFunc = InteractionFunction.PolynomialInteractionFunction(n=1)
-
-n = ModernHopfieldNetwork(dimension, nMemories, device, interactionFunc)
-n.setMemories(memories)
-
-
+nMemories = 5
 nStates = 10
+memories = createBipolarStates(dimension, nMemories).to(device)
 X = createBipolarStates(dimension, nStates).to(device)
-n.updateStates(X)
+
+
+interactionFunc = InteractionFunction.PolynomialInteractionFunction(n=2)
+network = ModernHopfieldNetwork(dimension, nMemories, device, interactionFunc)
+network.setMemories(memories)
+
+x = X.clone()
+network.relaxStates(x)
+similarities = torch.abs(memories.T @ x)
+print(torch.max(similarities, axis=0).values)
