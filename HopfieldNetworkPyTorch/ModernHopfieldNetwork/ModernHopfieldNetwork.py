@@ -75,7 +75,7 @@ class ModernHopfieldNetwork():
             return
 
         updateOrder = np.arange(self.dimension)
-        # np.random.shuffle(updateOrder)
+        np.random.shuffle(updateOrder)
 
         for neuronIndex in updateOrder:
             x0 = X.clone()

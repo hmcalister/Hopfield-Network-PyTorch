@@ -68,7 +68,7 @@ class HopfieldNetwork():
         """
 
         updateOrder = np.arange(self.dimension)
-        # np.random.shuffle(updateOrder)
+        np.random.shuffle(updateOrder)
 
         for neuronIndex in updateOrder:
             stateFields = torch.matmul(self.weightMatrix[neuronIndex], X)
