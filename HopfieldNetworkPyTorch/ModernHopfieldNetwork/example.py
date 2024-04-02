@@ -29,7 +29,7 @@ print("\tFinal State Average Standard Deviation of Similarity:\t", torch.std(mos
 # Learned Memories
 network = ModernHopfieldNetwork(dimension, 10*nMemories, device, interactionFunc)
 network.learnMemories(memories, 
-                      maxEpochs=250,
+                      maxEpochs=100,
                       learningRate=0.05, 
                       learningRateDecay=0.999, 
                       momentum=0.8, 

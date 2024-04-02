@@ -67,17 +67,20 @@ class ModernHopfieldNetwork():
 
         history = []
         previousGrads = torch.zeros_like(self.memories).to(self.memories.device)
-        progressBar = tqdm(range(maxEpochs), desc="Epoch", disable=(verbose!=1))
-        for epoch in progressBar:
+        epochProgressbar = tqdm(range(maxEpochs), desc="Epoch", disable=(verbose!=1))
+        updateOrder = np.arange(self.dimension)
+
+        for epoch in range(maxEpochs):
             shuffledIndices = torch.randperm(X.size(1))
             X = X[:, shuffledIndices]
             batches = torch.chunk(X, 1+X.shape[1] // batchSize, dim=1)
             epochTotalLoss = 0
 
+            np.random.shuffle(updateOrder)
             for batch in batches:
                 batch = batch.detach()
                 loss = 0
-                for i in np.arange(self.dimension):
+                for i in updateOrder:
                     x0 = batch.clone().detach()
                     x0[i, :] = 0
                     e0 = self.memories.T @ x0
@@ -100,7 +103,8 @@ class ModernHopfieldNetwork():
 
             history.append(epochTotalLoss/len(batches))
             if verbose==1:
-                progressBar.set_postfix({"Loss": f"{np.round(history[-1], 5):.5f}"})
+                epochProgressbar.set_postfix({"Loss": f"{np.round(history[-1], 5):.5f}"})
+                epochProgressbar.update()
             if verbose==2:
                 print(f"Epoch {epoch:04}: Loss {history[-1]}")
             if eps != 0 and len(history)>epsLength:
