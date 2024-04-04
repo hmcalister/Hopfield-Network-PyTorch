@@ -1,26 +1,28 @@
 import numpy as np
-from hmcalisterHopfieldUtils.prototype import createUniformlyRandomVector
+from hmcalisterHopfieldUtils.prototype import createUniformlyRandomVector, prototypeGenerationWithBernoulliVector
 from hmcalisterHopfieldUtils.hopfield import bipolarHeaviside
 from tqdm import tqdm
 
 dimension = 100
-numMemories = 25
+numMemories = 10
+numPrototypes = 10
 numLearnedStates = 250
 numStates = 100
 
-learnedStates = createUniformlyRandomVector(numLearnedStates, dimension)
+prototypes = createUniformlyRandomVector(numPrototypes, dimension)
+learnedStates = prototypeGenerationWithBernoulliVector(prototypes, 0.2, numLearnedStates)
 learnedStates = bipolarHeaviside(np.array(learnedStates)).T
 states = createUniformlyRandomVector(numStates, dimension)
 states = bipolarHeaviside(np.array(states)).T
 
-interactionVertexPower = 10
-errorPower = 10
-beta = 1e-10
+interactionVertexPower = 30
+errorPower = 2
+beta = 1e-3
 initialLearningRate = 4.0e-2
 learningRateDecay = 0.998
 momentum = 0.6
 maxEpochs = 1000
-batchSize = 25
+batchSize = numLearnedStates
 
 memories=np.random.normal(0.0, 1.0, (numMemories, dimension))
 memoryGrads = np.zeros((numMemories, dimension))
