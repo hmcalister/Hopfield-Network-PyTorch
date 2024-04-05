@@ -3,11 +3,11 @@ from hmcalisterHopfieldUtils.prototype import createUniformlyRandomVector, proto
 from hmcalisterHopfieldUtils.hopfield import bipolarHeaviside
 from tqdm import tqdm
 
-dimension = 100
-numMemories = 10
+dimension = 13
+numMemories = 17
 numPrototypes = 10
-numLearnedStates = 250
-numStates = 100
+numLearnedStates = 23
+numStates = 11
 
 prototypes = createUniformlyRandomVector(numPrototypes, dimension)
 learnedStates = prototypeGenerationWithBernoulliVector(prototypes, 0.2, numLearnedStates)
@@ -69,6 +69,7 @@ for epoch in range(maxEpochs):
             np.tile((batchFlattened-Y)**(2*errorPower-1)*(1-Y**2), (numMemories, 1))*rectifiedMemoriesSimilarity**(interactionVertexPower-1), tiledBatch.T
         )
 
+        # Memories, Dimension
         memoryGrads = momentum*memoryGrads + derivativeOfMemories
         maxGradMagnitude = np.max(np.absolute(memoryGrads), axis=1).reshape(numMemories, 1)
         maxGradMagnitudeTiled = np.tile(maxGradMagnitude, (1,dimension)) + 0.00001
