@@ -19,9 +19,9 @@ def measureSimilarities(states, trialStr):
 
 dimension = 100
 nMemories = 10
-nLearnedStates = 5
+nLearnedStates = 10
 nStates = 100
-interactionVertex = 2
+interactionVertex = 3
 
 learnedStates = createBipolarStates(nLearnedStates, dimension).to(device)
 X = createBipolarStates(nStates, dimension).to(device)
@@ -40,7 +40,7 @@ measureSimilarities(x, "Direct Memory Storage")
 
 # Learned Memories
 network = ModernHopfieldNetwork(dimension, nMemories, device, interactionFunc)
-T = 10
+T = 40
 network.learnMemories(learnedStates,
                         maxEpochs = 1000,
                         initialLearningRate = 4e-2,
@@ -49,7 +49,7 @@ network.learnMemories(learnedStates,
                         batchSize = nLearnedStates,
                         initialTemperature=T,
                         finalTemperature=T,
-                        errorPower = 1,
+                        errorPower = 2,
                         verbose=1
                     )
 
