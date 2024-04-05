@@ -5,7 +5,9 @@ class AbstractInteractionFunction(ABC):
     
     def __init__(self, n: int):
         """
-        Set the interaction vertex for the interaction function
+        Set the interaction vertex for the interaction function.
+
+        :param n: The interaction vertex of the activation function
         """
         
         self.n = n
@@ -13,3 +15,4 @@ class AbstractInteractionFunction(ABC):
     @abstractmethod
     def __call__(self, X: torch.Tensor) -> torch.Tensor:
         pass
+    
