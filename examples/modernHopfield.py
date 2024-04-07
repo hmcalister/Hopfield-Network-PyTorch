@@ -22,7 +22,7 @@ nMemories = 10
 nLearnedStates = 20
 nStates = 1000
 interactionVertex = 3
-batchSize = 1000
+batchSize = 128
 
 learnedStates = createBipolarStates(nLearnedStates, dimension).to(device)
 X = createBipolarStates(nStates, dimension).to(device)
