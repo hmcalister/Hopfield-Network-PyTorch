@@ -22,6 +22,7 @@ nMemories = 10
 nLearnedStates = 20
 nStates = 1000
 interactionVertex = 3
+batchSize = 1000
 
 learnedStates = createBipolarStates(nLearnedStates, dimension).to(device)
 X = createBipolarStates(nStates, dimension).to(device)
@@ -34,7 +35,7 @@ measureSimilarities(x, "Initial Similarity")
 network = ModernHopfieldNetwork(dimension, nLearnedStates, device, interactionFunc)
 network.setMemories(learnedStates)
 x = X.clone()
-network.relaxStates(x)
+network.relaxStates(x, batchSize=batchSize)
 measureSimilarities(x, "Direct Memory Storage")
 
 
@@ -46,7 +47,7 @@ network.learnMemories(learnedStates,
                         initialLearningRate = 4e-2,
                         learningRateDecay = 0.998,
                         momentum = 0.6,
-                        batchSize = nLearnedStates,
+                        batchSize = batchSize,
                         initialTemperature=T,
                         finalTemperature=T,
                         errorPower = 2,
@@ -54,5 +55,5 @@ network.learnMemories(learnedStates,
                     )
 
 x = X.clone()
-network.relaxStates(x)
+network.relaxStates(x, batchSize=batchSize)
 measureSimilarities(x, "Learned Memory Storage")
