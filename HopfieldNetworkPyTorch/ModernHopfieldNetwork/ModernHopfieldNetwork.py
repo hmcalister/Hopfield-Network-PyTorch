@@ -87,20 +87,23 @@ class ModernHopfieldNetwork():
             X = X[:, shuffledIndices]
 
             epochTotalLoss = 0
-            for batchIndex in range(X.shape[1] // batchSize):
-                batch = X[:, batchIndex*batchSize :(batchIndex+1)*batchSize].detach()
+            numBatches = np.ceil(X.shape[1] / batchSize).astype(int)
+            batches = torch.chunk(X, numBatches, dim=1)
+            for batchIndex in range(numBatches):
+                batch = batches[batchIndex].detach()
+                currentBatchSize = batch.shape[1]
                 
                 tiledBatchClampOn = torch.tile(batch, (1,self.dimension))
                 tiledBatchClampOff = torch.clone(tiledBatchClampOn)
                 for d in range(self.dimension):
-                    tiledBatchClampOn[d,d*batchSize:(d+1)*batchSize] = 1
-                    tiledBatchClampOff[d,d*batchSize:(d+1)*batchSize] = -1
+                    tiledBatchClampOn[d,d*currentBatchSize:(d+1)*currentBatchSize] = 1
+                    tiledBatchClampOff[d,d*currentBatchSize:(d+1)*currentBatchSize] = -1
                 onSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOn)
                 offSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOff)
                 Y = torch.tanh(beta*torch.sum(onSimilarity-offSimilarity, axis=0)).reshape(batch.shape)
                 
                 loss = torch.sum((Y - batch)**(2*errorPower))
-                loss /= (batchSize * self.dimension)
+                loss /= (currentBatchSize * self.dimension)
                 loss.backward()
 
                 with torch.no_grad():
@@ -161,8 +164,12 @@ class ModernHopfieldNetwork():
         if batchSize is None:
             batchSize = X.shape[1]
 
-        for batchIndex in range(X.shape[1] // batchSize):
-            batch = X[:, batchIndex*batchSize :(batchIndex+1)*batchSize].detach()
+        numBatches = np.ceil(X.shape[1] / batchSize).astype(int)
+        batches = torch.chunk(X, numBatches, dim=1)
+        batchViewStartIndex = 0
+        for batchIndex in range(numBatches):
+            batch = batches[batchIndex].detach()
+            currentBatchSize = batch.shape[1]
             
             # First we make two tensors of shape (dimension, dimension*nStates)
             # 
@@ -176,15 +183,16 @@ class ModernHopfieldNetwork():
             tiledBatchClampOn = torch.clone(tiledBatch)
             tiledBatchClampOff = torch.clone(tiledBatch)
             for d in range(self.dimension):
-                tiledBatchClampOn[d,d*batchSize:(d+1)*batchSize] = 1
-                tiledBatchClampOff[d,d*batchSize:(d+1)*batchSize] = -1
+                tiledBatchClampOn[d,d*currentBatchSize:(d+1)*currentBatchSize] = 1
+                tiledBatchClampOff[d,d*currentBatchSize:(d+1)*currentBatchSize] = -1
             onSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOn)
             offSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOff)
         
             Y = torch.sign(torch.sum(onSimilarity-offSimilarity, axis=0))
             Y[Y==0] = 1
-            Y = torch.reshape(Y, X.shape)
-            X[:, batchIndex*batchSize :(batchIndex+1)*batchSize] = Y
+            Y = torch.reshape(Y, batch.shape)
+            X[:, batchViewStartIndex :batchViewStartIndex + currentBatchSize] = Y
+            batchViewStartIndex += currentBatchSize
 
     def relaxStates(self, X: torch.Tensor, maxIterations: int = 100, batchSize: int = None, verbose: bool = False) -> torch.Tensor:
         """
