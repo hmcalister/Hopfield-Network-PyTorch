@@ -8,14 +8,19 @@ from .InteractionFunction import AbstractInteractionFunction
 class ModernHopfieldNetwork():
     
     def __init__(self, dimension: int, nMemories: int, torchDevice: str, interactionFunction: AbstractInteractionFunction):
+        """
+        Create a new modern Hopfield network with the specified dimension and number of memories.
+        Note the interaction function must implement InteractionFunction.AbstractInteractionFunction, which exposes a variable n representing the interaction vertex
+        If using direct memory storage (that is, not learning the memories), calling network.setMemories after the constructor will allow for memories to be placed into the network.
+
+        :param dimension: The dimension of the network.
+        :param nMemories: The number of memories the network will hold. Memories should be in the range [-1,1]
+        :param torchDevice:  The pytorch device to store the memories on, e.g. "cpu" or "cuda".
+        :param interactionFunction: An implementation of InteractionFunction.AbstractInteractionFunction.
+        """
         
-         # The dimension of the network
         self.dimension = dimension
-        
-        # The memories of the network
         self.memories = torch.rand(size=(self.dimension, nMemories), requires_grad=True, device=torchDevice)
-        
-        # The interaction function of the network
         self.interactionFunction = interactionFunction
 
     def setMemories(self, memories: torch.Tensor):
