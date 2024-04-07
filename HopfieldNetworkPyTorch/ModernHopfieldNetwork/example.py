@@ -3,12 +3,12 @@ import torch
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 def createBipolarStates(nStates: int, dimension: int):
-    X = 2*torch.rand(size=(nStates, dimension))-1
+    X = 2*torch.rand(size=(dimension, nStates))-1
     X = 2*torch.heaviside(X, torch.tensor(0.0))-1
     return X
 
 def measureSimilarities(states, trialStr):
-    similarities = torch.abs(learnedStates @ states.T)
+    similarities = torch.abs(learnedStates.T @ states)
     mostSimilar = torch.max(similarities, axis=0).values / dimension
     print(trialStr)
     print("\tFinal State Average Similarity to Memory:\t", torch.mean(mostSimilar).item())
@@ -19,8 +19,8 @@ def measureSimilarities(states, trialStr):
 
 dimension = 100
 nMemories = 10
-nLearnedStates = 10
-nStates = 100
+nLearnedStates = 20
+nStates = 1000
 interactionVertex = 3
 
 learnedStates = createBipolarStates(nLearnedStates, dimension).to(device)
@@ -34,7 +34,7 @@ measureSimilarities(x, "Initial Similarity")
 network = ModernHopfieldNetwork(dimension, nLearnedStates, device, interactionFunc)
 network.setMemories(learnedStates)
 x = X.clone()
-x = network.relaxStates(x)
+network.relaxStates(x)
 measureSimilarities(x, "Direct Memory Storage")
 
 
@@ -54,5 +54,5 @@ network.learnMemories(learnedStates,
                     )
 
 x = X.clone()
-x = network.relaxStates(x)
+network.relaxStates(x)
 measureSimilarities(x, "Learned Memory Storage")
