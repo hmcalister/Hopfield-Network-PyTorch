@@ -5,13 +5,13 @@ import torch
 from .LearningRule import AbstractLearningRule
 
 class HopfieldNetwork():
-    def __init__(self, dimension: int, torchDevice: str, learningRule: AbstractLearningRule):
+    def __init__(self, dimension: int, learningRule: AbstractLearningRule, torchDevice: str):
         """
         Create a new Hopfield Network of the specified dimension.
 
         :param dimension: The dimension of the network.
+        :param learningRule: The learning rule. Must implement LearningRule.AbstractLearningRule
         :param torchDevice:  The pytorch device to store the weight matrix on.
-        :param learningRule: The learning rule. Must implement HopfieldNetworkPyTorch.HopfieldNetwork.LearningRule.AbstractLearningRule
         """
 
         # The dimension of the network
@@ -23,7 +23,7 @@ class HopfieldNetwork():
         # Initialize the weight matrix to zeros
         self.weightMatrix = torch.zeros(size=(dimension, dimension)).to(torchDevice)
 
-    def trainNetwork(self, X: torch.Tensor):
+    def learnMemories(self, X: torch.Tensor):
         """
         Train the network on the given states.
         Note before training the network, the user must manually set the value of network.learningRule to something OTHER than AbstractLearningRule.
