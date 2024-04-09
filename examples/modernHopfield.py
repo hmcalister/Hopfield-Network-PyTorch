@@ -1,11 +1,7 @@
 from HopfieldNetworkPyTorch.ModernHopfieldNetwork import ModernHopfieldNetwork, InteractionFunction
+from HopfieldNetworkPyTorch.utils import createBipolarStates
 import torch
 device = "cuda" if torch.cuda.is_available() else "cpu"
-
-def createBipolarStates(nStates: int, dimension: int):
-    X = 0.5*torch.ones(size=(dimension, nStates))
-    X = torch.bernoulli(X)
-    return X
 
 def measureSimilarities(learnedStates, states, trialStr):
     similarities = torch.abs(learnedStates.T @ states)
@@ -22,8 +18,8 @@ interactionVertex = 3
 temperature = 40
 batchSize = 128
 
-learnedStates = createBipolarStates(nLearnedStates, dimension).to(device)
-X = createBipolarStates(nStates, dimension).to(device)
+learnedStates = createBipolarStates(dimension, nLearnedStates).to(device)
+X = createBipolarStates(dimension, nStates).to(device)
 interactionFunc = InteractionFunction.RectifiedPolynomialInteractionFunction(n=interactionVertex)
 
 x = X.clone()

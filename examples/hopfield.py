@@ -1,11 +1,7 @@
 from HopfieldNetworkPyTorch.HopfieldNetwork import HopfieldNetwork, LearningRule
+from HopfieldNetworkPyTorch.utils import createBipolarStates
 import torch
 device = "cuda" if torch.cuda.is_available() else "cpu"
-
-def createBipolarStates(nStates: int, dimension: int):
-    X = 0.5*torch.ones(size=(dimension, nStates))
-    X = 2*torch.bernoulli(X)-1
-    return X
 
 def measureSimilarities(learnedStates, states, trialStr):
     similarities = torch.abs(learnedStates.T @ states)
@@ -19,8 +15,8 @@ nLearnedStates = 10
 nStates = 1000
 learningRule = LearningRule.HebbianLearningRule()
 
-learnedStates = createBipolarStates(nLearnedStates, dimension).to(device)
-X = createBipolarStates(nStates, dimension).to(device)
+learnedStates = createBipolarStates(dimension, nLearnedStates).to(device)
+X = createBipolarStates(dimension, nStates).to(device)
 
 x = X.clone()
 measureSimilarities(learnedStates, x, "Initial Similarity")
