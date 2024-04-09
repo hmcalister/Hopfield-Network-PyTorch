@@ -71,8 +71,6 @@ class ModernHopfieldNetwork():
         if batchSize is None:
             batchSize = X.shape[1]
 
-        # TODO: Fix shape transpose
-
         history = []
         memoryGrads = torch.zeros_like(self.memories).to(self.memories.device)
         epochProgressbar = tqdm(range(maxEpochs), desc="Epoch", disable=(verbose!=1))
@@ -115,8 +113,6 @@ class ModernHopfieldNetwork():
                     self.memories -= learningRate * memoryGrads / maxGradMagnitudeTiled
                     self.memories = self.memories.clamp_(-1,1)
                     self.memories.grad = None
-
-                    # TODO: Loss
                     epochTotalLoss += loss.item() 
 
             history.append(epochTotalLoss)
