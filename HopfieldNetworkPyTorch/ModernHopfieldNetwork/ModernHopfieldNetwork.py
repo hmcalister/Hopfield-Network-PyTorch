@@ -124,6 +124,7 @@ class ModernHopfieldNetwork():
 
         return history
     
+    @torch.no_grad()
     def energy(self, X: torch.Tensor) -> torch.Tensor:
         """
         Calculates and returns the energy of a set of states.
@@ -144,6 +145,7 @@ class ModernHopfieldNetwork():
     #     :returns: A (nStates) tensor of booleans with each entry the stability of a state.
     #     """
 
+    @torch.no_grad()
     def stepStates(self, X: torch.Tensor, batchSize: int = None) -> torch.Tensor:
         """
         Step the given states according to the energy difference rule. 
@@ -190,6 +192,7 @@ class ModernHopfieldNetwork():
             X[:, batchViewStartIndex :batchViewStartIndex + currentBatchSize] = Y
             batchViewStartIndex += currentBatchSize
 
+    @torch.no_grad()
     def relaxStates(self, X: torch.Tensor, maxIterations: int = 100, batchSize: int = None, verbose: bool = False) -> torch.Tensor:
         """
         Update the states some number of times.
