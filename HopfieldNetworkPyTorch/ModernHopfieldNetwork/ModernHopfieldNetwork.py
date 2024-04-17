@@ -146,7 +146,7 @@ class ModernHopfieldNetwork():
     #     """
 
     @torch.no_grad()
-    def stepStates(self, X: torch.Tensor, batchSize: int = None) -> torch.Tensor:
+    def stepStates(self, X: torch.Tensor, batchSize: int = None):
         """
         Step the given states according to the energy difference rule. 
         Step implies only a single update is made, no matter if the result is stable or not.
@@ -193,7 +193,7 @@ class ModernHopfieldNetwork():
             batchViewStartIndex += currentBatchSize
 
     @torch.no_grad()
-    def relaxStates(self, X: torch.Tensor, maxIterations: int = 100, batchSize: int = None, verbose: bool = False) -> torch.Tensor:
+    def relaxStates(self, X: torch.Tensor, maxIterations: int = 100, batchSize: int = None, verbose: bool = False):
         """
         Update the states some number of times.
 
