@@ -77,6 +77,10 @@ class ModernHopfieldNetwork():
         :return: A list of the loss history over the epochs
         """
 
+        if self.itemBatchSize is None:
+            itemBatchSize = X.shape[1]
+        if self.neuronBatchSize is None:
+            neuronBatchSize = X.shape[0]
 
         history = []
         memoryGrads = torch.zeros_like(self.memories).to(self.memories.device)
