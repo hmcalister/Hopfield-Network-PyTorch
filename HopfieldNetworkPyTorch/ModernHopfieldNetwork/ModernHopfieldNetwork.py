@@ -82,12 +82,20 @@ class ModernHopfieldNetwork():
         if self.neuronBatchSize is None:
             neuronBatchSize = X.shape[0]
 
+        neuronIndices = torch.arange(X.shape[0])
+        numNeuronBatches = np.ceil(X.shape[0] / neuronBatchSize).astype(int)
+        neuronBatches = torch.chunk(neuronIndices, numNeuronBatches)
+
         history = []
         memoryGrads = torch.zeros_like(self.memories).to(self.memories.device)
-        epochProgressbar = tqdm(range(maxEpochs), desc="Epoch", disable=(verbose!=1))
         interactionVertex = self.interactionFunction.n
-
+        
+        epochProgressbar = tqdm(range(maxEpochs), desc="Epoch", disable=(verbose!=1))
         for epoch in range(maxEpochs):
+            epochTotalLoss = 0
+            shuffledIndices = torch.randperm(X.shape[1])
+            X = X[:, shuffledIndices]
+            
             learningRate = initialLearningRate*learningRateDecay**epoch
             temperature = initialTemperature + (finalTemperature-initialTemperature) * epoch/maxEpochs
             beta = 1/(temperature**interactionVertex)
