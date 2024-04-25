@@ -7,7 +7,7 @@ from .InteractionFunction import AbstractInteractionFunction
 
 class ModernHopfieldNetwork():
     
-    def __init__(self, dimension: int, nMemories: int, torchDevice: str, interactionFunction: AbstractInteractionFunction):
+    def __init__(self, dimension: int, nMemories: int, torchDevice: str, interactionFunction: AbstractInteractionFunction, itemBatchSize: int = None, neuronBatchSize: int = None):
         """
         Create a new modern Hopfield network with the specified dimension and number of memories.
         Note the interaction function must implement InteractionFunction.AbstractInteractionFunction, which exposes a variable n representing the interaction vertex
@@ -17,12 +17,16 @@ class ModernHopfieldNetwork():
         :param nMemories: The number of memories the network will hold. Memories should be in the range [-1,1]
         :param torchDevice:  The pytorch device to store the memories on, e.g. "cpu" or "cuda".
         :param interactionFunction: An implementation of InteractionFunction.AbstractInteractionFunction.
+        :param itemBatchSize: Sets the batch size for items, i.e. how many items are processed at once. None (default) indicates no batching, process all items at once.
+        :param neuronBatchSize: Sets the batch size for neurons, i.e. how many neurons are processed at once. None (default) indicates no batching, process all neurons at once.
         """
         
         self.dimension = dimension
         self.memories = torch.rand(size=(self.dimension, nMemories), requires_grad=True, device=torchDevice)
         self.interactionFunction = interactionFunction
 
+        self.itemBatchSize = itemBatchSize
+        self.neuronBatchSize = neuronBatchSize
     def setMemories(self, memories: torch.Tensor):
         """
         Set the memories of the network directly. Note the memories must be moved to the preferred device before being passed.
