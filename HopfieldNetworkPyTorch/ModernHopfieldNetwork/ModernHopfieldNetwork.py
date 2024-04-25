@@ -51,7 +51,6 @@ class ModernHopfieldNetwork():
                         momentum: float = 0.0,
                         initialTemperature: float = 100,
                         finalTemperature: float = 100,
-                        batchSize: int = None,
                         errorPower: int = 1,
                         precision: float = 1.0e-30,
                         verbose: int = 2,
@@ -69,7 +68,6 @@ class ModernHopfieldNetwork():
         :param initialTemperature: The initial temperature of the network.
             Controls the slope of the tanh activation function, beta = 1/(temperature**interactionVertex)
         :param finalTemperature: The final temperature of the network.
-        :param batchSize: The size of batches. Defaults to None, which sets the batchSize to the number of states (X.shape[1])
         :param errorPower: The power to apply to the error when summing the loss
         :param precision: The minimum precision of the weight update, avoids division by zero errors
         :param verbose: An integer to indicate verbosity
@@ -79,8 +77,6 @@ class ModernHopfieldNetwork():
         :return: A list of the loss history over the epochs
         """
 
-        if batchSize is None:
-            batchSize = X.shape[1]
 
         history = []
         memoryGrads = torch.zeros_like(self.memories).to(self.memories.device)
