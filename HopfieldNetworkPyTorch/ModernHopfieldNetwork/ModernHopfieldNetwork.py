@@ -27,6 +27,13 @@ class ModernHopfieldNetwork():
 
         self.itemBatchSize = itemBatchSize
         self.neuronBatchSize = neuronBatchSize
+
+    def setItemBatchSize(self, itemBatchSize: int) :
+        self.itemBatchSize = itemBatchSize
+
+    def setNeuronBatchSize(self, neuronBatchSize: int) :
+        self.neuronBatchSize = neuronBatchSize
+
     def setMemories(self, memories: torch.Tensor):
         """
         Set the memories of the network directly. Note the memories must be moved to the preferred device before being passed.
