@@ -77,10 +77,9 @@ class ModernHopfieldNetwork():
         :return: A list of the loss history over the epochs
         """
 
-        if self.itemBatchSize is None:
-            itemBatchSize = X.shape[1]
-        if self.neuronBatchSize is None:
-            neuronBatchSize = X.shape[0]
+        itemBatchSize = self.itemBatchSize if self.itemBatchSize is not None else X.shape[0]
+        neuronBatchSize = self.neuronBatchSize if self.neuronBatchSize is not None else X.shape[0]
+
 
         neuronIndices = torch.arange(X.shape[0])
         numNeuronBatches = np.ceil(X.shape[0] / neuronBatchSize).astype(int)
