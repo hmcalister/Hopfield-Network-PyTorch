@@ -107,23 +107,25 @@ class ModernHopfieldNetwork():
                 currentItemBatchSize = itemBatch.shape[1]
 
                 itemBatchLoss = 0
+                neuronBatchViewStartIndex = 0
                 for neuronBatchIndex in range(numNeuronBatches):
                     neuronIndices = neuronBatches[neuronBatchIndex].detach()
-                    numNeuronIndices = neuronIndices.shape[0]
+                    neuronBatchNumIndices = neuronIndices.shape[0]
                 
-                    tiledBatchClampOn = torch.tile(itemBatch, (1,numNeuronIndices))
+                    tiledBatchClampOn = torch.tile(itemBatch, (1,neuronBatchNumIndices))
                     tiledBatchClampOff = torch.clone(tiledBatchClampOn)
                     for i, d in enumerate(neuronIndices):
                         tiledBatchClampOn[d,i*currentItemBatchSize:(i+1)*currentItemBatchSize] = 1
                         tiledBatchClampOff[d,i*currentItemBatchSize:(i+1)*currentItemBatchSize] = -1
                     onSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOn)
                     offSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOff)
-                    Y = torch.tanh(beta*torch.sum(onSimilarity-offSimilarity, axis=0)).reshape(itemBatch.shape)
+                    Y = torch.tanh(beta*torch.sum(onSimilarity-offSimilarity, axis=0)).reshape([neuronBatchNumIndices, currentItemBatchSize])
                     
-                    neuronBatchLoss = torch.sum((Y - itemBatch)**(2*errorPower))
+                    neuronBatchLoss = torch.sum((Y - itemBatch[neuronBatchViewStartIndex:neuronBatchViewStartIndex+neuronBatchNumIndices])**(2*errorPower))
                     neuronBatchLoss /= (currentItemBatchSize * self.dimension)
+                    neuronBatchViewStartIndex += neuronBatchNumIndices
                     itemBatchLoss += neuronBatchLoss
-                    
+
                 itemBatchLoss.backward()
                 with torch.no_grad():
                     epochGrads = self.memories.grad
