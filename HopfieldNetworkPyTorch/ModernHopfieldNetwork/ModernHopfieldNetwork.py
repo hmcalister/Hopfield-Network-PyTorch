@@ -181,36 +181,47 @@ class ModernHopfieldNetwork():
             Tensor must be on the correct device and have shape (network.dimension, nStates)
         """
 
+        itemBatchSize = self.itemBatchSize if self.itemBatchSize is not None else X.shape[0]
+        neuronBatchSize = self.neuronBatchSize if self.neuronBatchSize is not None else X.shape[0]
 
-        numBatches = np.ceil(X.shape[1] / batchSize).astype(int)
-        batches = torch.chunk(X, numBatches, dim=1)
-        batchViewStartIndex = 0
-        for batchIndex in range(numBatches):
-            batch = batches[batchIndex].detach()
-            currentBatchSize = batch.shape[1]
-            
-            # First we make two tensors of shape (dimension, dimension*nStates)
-            # 
-            # The first index walks over the dimension, while the second holds a flattened copy
-            # of each state in X. For each index in newShape[0] there is an entire copy of 
-            # X with that particular index set to 1 (clampOn) or -1 (clampOff)
-            #
-            # So tiledStatesClampOn[0].reshape(X.shape) will return a tensor that looks
-            # exactly like X but the entire first dimension is set to 1.
-            tiledBatch = torch.tile(batch, (1,self.dimension))
-            tiledBatchClampOn = torch.clone(tiledBatch)
-            tiledBatchClampOff = torch.clone(tiledBatch)
-            for d in range(self.dimension):
-                tiledBatchClampOn[d,d*currentBatchSize:(d+1)*currentBatchSize] = 1
-                tiledBatchClampOff[d,d*currentBatchSize:(d+1)*currentBatchSize] = -1
-            onSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOn)
-            offSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOff)
-        
-            Y = torch.sign(torch.sum(onSimilarity-offSimilarity, axis=0))
-            Y[Y==0] = 1
-            Y = torch.reshape(Y, batch.shape)
-            X[:, batchViewStartIndex :batchViewStartIndex + currentBatchSize] = Y
-            batchViewStartIndex += currentBatchSize
+        neuronIndices = torch.arange(X.shape[0])
+        numNeuronBatches = np.ceil(X.shape[0] / neuronBatchSize).astype(int)
+        neuronBatches = torch.chunk(neuronIndices, numNeuronBatches)
+
+        numItemBatches = np.ceil(X.shape[1] / itemBatchSize).astype(int)
+        itemBatches = torch.chunk(X, numItemBatches, dim=1)
+        itemBatchViewStartIndex = 0
+        for itemBatchIndex in range(numItemBatches):
+            itemBatch = itemBatches[itemBatchIndex].detach()
+            currentItemBatchSize = itemBatch.shape[1]
+
+            neuronBatchViewStartIndex = 0
+            for neuronBatchIndex in range(numNeuronBatches):
+                neuronIndices = neuronBatches[neuronBatchIndex].detach()
+                neuronBatchNumIndices = neuronIndices.shape[0]
+
+                # First we make two tensors of shape (dimension, dimension*numNeuronIndices)
+                # 
+                # The first index walks over the dimension, while the second holds a flattened copy
+                # of each state in X. For each neuron in this neuronBatch there is an entire copy of 
+                # X with that particular index set to 1 (clampOn) or -1 (clampOff)
+                #
+                # So tiledStatesClampOn[0].reshape(X.shape) will return a tensor that looks
+                # exactly like X but the entire first dimension is set to 1.
+                tiledBatchClampOn = torch.tile(itemBatch, (1,neuronBatchNumIndices))
+                tiledBatchClampOff = torch.clone(tiledBatchClampOn)
+                for i, d in enumerate(neuronIndices):
+                    tiledBatchClampOn[d,i*currentItemBatchSize:(i+1)*currentItemBatchSize] = 1
+                    tiledBatchClampOff[d,i*currentItemBatchSize:(i+1)*currentItemBatchSize] = -1
+                onSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOn)
+                offSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOff)
+                
+                Y = torch.sign(torch.sum(onSimilarity-offSimilarity, axis=0))
+                Y[Y==0] = 1
+                Y = torch.reshape(Y, [neuronBatchNumIndices, currentItemBatchSize])
+                X[neuronBatchViewStartIndex:neuronBatchViewStartIndex+neuronBatchNumIndices, itemBatchViewStartIndex:itemBatchViewStartIndex + currentItemBatchSize] = Y
+                neuronBatchViewStartIndex += neuronBatchNumIndices
+            itemBatchViewStartIndex += currentItemBatchSize
 
     @torch.no_grad()
     def relaxStates(self, X: torch.Tensor, maxIterations: int = 100, batchSize: int = None, verbose: bool = False):
