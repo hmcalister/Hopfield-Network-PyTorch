@@ -37,9 +37,9 @@ measureSimilarities(learnedStates, x, "Direct Memory Storage")
 # Learned Memories
 network = ModernHopfieldNetwork(dimension, nMemories, device, interactionFunc, itemBatchSize, neuronBatchSize)
 network.learnMemories(learnedStates,
-                        maxEpochs = 1000,
-                        initialLearningRate = 4e-2,
-                        learningRateDecay = 0.998,
+                        maxEpochs = 100,
+                        initialLearningRate = 1e-2,
+                        learningRateDecay = 0.999,
                         momentum = 0.6,
                         initialTemperature=temperature,
                         finalTemperature=temperature,
