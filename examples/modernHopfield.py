@@ -16,7 +16,8 @@ nLearnedStates = 20
 nStates = 1000
 interactionVertex = 3
 temperature = 40
-batchSize = 128
+itemBatchSize = None
+neuronBatchSize = None
 
 learnedStates = createBipolarStates(dimension, nLearnedStates).to(device)
 X = createBipolarStates(dimension, nStates).to(device)
@@ -26,21 +27,20 @@ x = X.clone()
 measureSimilarities(learnedStates, x, "Initial Similarity")
 
 # Direct Memory Storage
-network = ModernHopfieldNetwork(dimension, nLearnedStates, device, interactionFunc)
+network = ModernHopfieldNetwork(dimension, nLearnedStates, device, interactionFunc, itemBatchSize, neuronBatchSize)
 network.setMemories(learnedStates)
 x = X.clone()
-network.relaxStates(x, batchSize=batchSize)
+network.relaxStates(x)
 measureSimilarities(learnedStates, x, "Direct Memory Storage")
 
 
 # Learned Memories
-network = ModernHopfieldNetwork(dimension, nMemories, device, interactionFunc)
+network = ModernHopfieldNetwork(dimension, nMemories, device, interactionFunc, itemBatchSize, neuronBatchSize)
 network.learnMemories(learnedStates,
                         maxEpochs = 1000,
                         initialLearningRate = 4e-2,
                         learningRateDecay = 0.998,
                         momentum = 0.6,
-                        batchSize = batchSize,
                         initialTemperature=temperature,
                         finalTemperature=temperature,
                         errorPower = 2,
@@ -48,5 +48,5 @@ network.learnMemories(learnedStates,
                     )
 
 x = X.clone()
-network.relaxStates(x, batchSize=batchSize)
+network.relaxStates(x)
 measureSimilarities(learnedStates, x, "Learned Memory Storage")
