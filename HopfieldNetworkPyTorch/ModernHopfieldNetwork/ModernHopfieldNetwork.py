@@ -7,7 +7,7 @@ from .InteractionFunction import AbstractInteractionFunction
 
 class ModernHopfieldNetwork():
     
-    def __init__(self, dimension: int, nMemories: int, torchDevice: str, interactionFunction: AbstractInteractionFunction):
+    def __init__(self, dimension: int, nMemories: int, torchDevice: str, interactionFunction: AbstractInteractionFunction, itemBatchSize: int = None, neuronBatchSize: int = None):
         """
         Create a new modern Hopfield network with the specified dimension and number of memories.
         Note the interaction function must implement InteractionFunction.AbstractInteractionFunction, which exposes a variable n representing the interaction vertex
@@ -17,11 +17,22 @@ class ModernHopfieldNetwork():
         :param nMemories: The number of memories the network will hold. Memories should be in the range [-1,1]
         :param torchDevice:  The pytorch device to store the memories on, e.g. "cpu" or "cuda".
         :param interactionFunction: An implementation of InteractionFunction.AbstractInteractionFunction.
+        :param itemBatchSize: Sets the batch size for items, i.e. how many items are processed at once. None (default) indicates no batching, process all items at once.
+        :param neuronBatchSize: Sets the batch size for neurons, i.e. how many neurons are processed at once. None (default) indicates no batching, process all neurons at once.
         """
         
         self.dimension = dimension
         self.memories = torch.rand(size=(self.dimension, nMemories), requires_grad=True, device=torchDevice)
         self.interactionFunction = interactionFunction
+
+        self.itemBatchSize = itemBatchSize
+        self.neuronBatchSize = neuronBatchSize
+
+    def setItemBatchSize(self, itemBatchSize: int) :
+        self.itemBatchSize = itemBatchSize
+
+    def setNeuronBatchSize(self, neuronBatchSize: int) :
+        self.neuronBatchSize = neuronBatchSize
 
     def setMemories(self, memories: torch.Tensor):
         """
@@ -40,7 +51,6 @@ class ModernHopfieldNetwork():
                         momentum: float = 0.0,
                         initialTemperature: float = 100,
                         finalTemperature: float = 100,
-                        batchSize: int = None,
                         errorPower: int = 1,
                         precision: float = 1.0e-30,
                         verbose: int = 2,
@@ -58,7 +68,6 @@ class ModernHopfieldNetwork():
         :param initialTemperature: The initial temperature of the network.
             Controls the slope of the tanh activation function, beta = 1/(temperature**interactionVertex)
         :param finalTemperature: The final temperature of the network.
-        :param batchSize: The size of batches. Defaults to None, which sets the batchSize to the number of states (X.shape[1])
         :param errorPower: The power to apply to the error when summing the loss
         :param precision: The minimum precision of the weight update, avoids division by zero errors
         :param verbose: An integer to indicate verbosity
@@ -68,42 +77,56 @@ class ModernHopfieldNetwork():
         :return: A list of the loss history over the epochs
         """
 
-        if batchSize is None:
-            batchSize = X.shape[1]
+        itemBatchSize = self.itemBatchSize if self.itemBatchSize is not None else X.shape[0]
+        neuronBatchSize = self.neuronBatchSize if self.neuronBatchSize is not None else X.shape[0]
+
+
+        neuronIndices = torch.arange(X.shape[0])
+        numNeuronBatches = np.ceil(X.shape[0] / neuronBatchSize).astype(int)
+        neuronBatches = torch.chunk(neuronIndices, numNeuronBatches)
 
         history = []
         memoryGrads = torch.zeros_like(self.memories).to(self.memories.device)
-        epochProgressbar = tqdm(range(maxEpochs), desc="Epoch", disable=(verbose!=1))
         interactionVertex = self.interactionFunction.n
-
+        
+        epochProgressbar = tqdm(range(maxEpochs), desc="Epoch", disable=(verbose!=1))
         for epoch in range(maxEpochs):
+            epochTotalLoss = 0
+            shuffledIndices = torch.randperm(X.shape[1])
+            X = X[:, shuffledIndices]
+            
             learningRate = initialLearningRate*learningRateDecay**epoch
             temperature = initialTemperature + (finalTemperature-initialTemperature) * epoch/maxEpochs
             beta = 1/(temperature**interactionVertex)
+            
+            numItemBatches = np.ceil(X.shape[1] / itemBatchSize).astype(int)
+            itemBatches = torch.chunk(X, numItemBatches, dim=1)
 
-            shuffledIndices = torch.randperm(X.shape[1])
-            X = X[:, shuffledIndices]
+            for itemBatchIndex in range(numItemBatches):
+                itemBatch = itemBatches[itemBatchIndex].detach()
+                currentItemBatchSize = itemBatch.shape[1]
 
-            epochTotalLoss = 0
-            numBatches = np.ceil(X.shape[1] / batchSize).astype(int)
-            batches = torch.chunk(X, numBatches, dim=1)
-            for batchIndex in range(numBatches):
-                batch = batches[batchIndex].detach()
-                currentBatchSize = batch.shape[1]
+                itemBatchLoss = 0
+                neuronBatchViewStartIndex = 0
+                for neuronBatchIndex in range(numNeuronBatches):
+                    neuronIndices = neuronBatches[neuronBatchIndex].detach()
+                    neuronBatchNumIndices = neuronIndices.shape[0]
                 
-                tiledBatchClampOn = torch.tile(batch, (1,self.dimension))
-                tiledBatchClampOff = torch.clone(tiledBatchClampOn)
-                for d in range(self.dimension):
-                    tiledBatchClampOn[d,d*currentBatchSize:(d+1)*currentBatchSize] = 1
-                    tiledBatchClampOff[d,d*currentBatchSize:(d+1)*currentBatchSize] = -1
-                onSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOn)
-                offSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOff)
-                Y = torch.tanh(beta*torch.sum(onSimilarity-offSimilarity, axis=0)).reshape(batch.shape)
-                
-                loss = torch.sum((Y - batch)**(2*errorPower))
-                loss /= (currentBatchSize * self.dimension)
-                loss.backward()
+                    tiledBatchClampOn = torch.tile(itemBatch, (1,neuronBatchNumIndices))
+                    tiledBatchClampOff = torch.clone(tiledBatchClampOn)
+                    for i, d in enumerate(neuronIndices):
+                        tiledBatchClampOn[d,i*currentItemBatchSize:(i+1)*currentItemBatchSize] = 1
+                        tiledBatchClampOff[d,i*currentItemBatchSize:(i+1)*currentItemBatchSize] = -1
+                    onSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOn)
+                    offSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOff)
+                    Y = torch.tanh(beta*torch.sum(onSimilarity-offSimilarity, axis=0)).reshape([neuronBatchNumIndices, currentItemBatchSize])
+                    
+                    neuronBatchLoss = torch.sum((Y - itemBatch[neuronBatchViewStartIndex:neuronBatchViewStartIndex+neuronBatchNumIndices])**(2*errorPower))
+                    neuronBatchLoss /= (currentItemBatchSize * self.dimension)
+                    neuronBatchViewStartIndex += neuronBatchNumIndices
+                    itemBatchLoss += neuronBatchLoss
 
+                itemBatchLoss.backward()
                 with torch.no_grad():
                     epochGrads = self.memories.grad
                     memoryGrads = momentum * memoryGrads + epochGrads
@@ -113,7 +136,7 @@ class ModernHopfieldNetwork():
                     self.memories -= learningRate * memoryGrads / maxGradMagnitudeTiled
                     self.memories = self.memories.clamp_(-1,1)
                     self.memories.grad = None
-                    epochTotalLoss += loss.item() 
+                    epochTotalLoss += itemBatchLoss.item() 
 
             history.append(epochTotalLoss)
             if verbose==1:
@@ -146,7 +169,7 @@ class ModernHopfieldNetwork():
     #     """
 
     @torch.no_grad()
-    def stepStates(self, X: torch.Tensor, batchSize: int = None):
+    def stepStates(self, X: torch.Tensor):
         """
         Step the given states according to the energy difference rule. 
         Step implies only a single update is made, no matter if the result is stable or not.
@@ -156,57 +179,64 @@ class ModernHopfieldNetwork():
 
         :param X: The tensor of states to step. 
             Tensor must be on the correct device and have shape (network.dimension, nStates)
-        :param batchSize: The size of batches. Defaults to None, which sets the batchSize to the number of states (X.shape[1])
         """
 
-        if batchSize is None:
-            batchSize = X.shape[1]
+        itemBatchSize = self.itemBatchSize if self.itemBatchSize is not None else X.shape[0]
+        neuronBatchSize = self.neuronBatchSize if self.neuronBatchSize is not None else X.shape[0]
 
-        numBatches = np.ceil(X.shape[1] / batchSize).astype(int)
-        batches = torch.chunk(X, numBatches, dim=1)
-        batchViewStartIndex = 0
-        for batchIndex in range(numBatches):
-            batch = batches[batchIndex].detach()
-            currentBatchSize = batch.shape[1]
-            
-            # First we make two tensors of shape (dimension, dimension*nStates)
-            # 
-            # The first index walks over the dimension, while the second holds a flattened copy
-            # of each state in X. For each index in newShape[0] there is an entire copy of 
-            # X with that particular index set to 1 (clampOn) or -1 (clampOff)
-            #
-            # So tiledStatesClampOn[0].reshape(X.shape) will return a tensor that looks
-            # exactly like X but the entire first dimension is set to 1.
-            tiledBatch = torch.tile(batch, (1,self.dimension))
-            tiledBatchClampOn = torch.clone(tiledBatch)
-            tiledBatchClampOff = torch.clone(tiledBatch)
-            for d in range(self.dimension):
-                tiledBatchClampOn[d,d*currentBatchSize:(d+1)*currentBatchSize] = 1
-                tiledBatchClampOff[d,d*currentBatchSize:(d+1)*currentBatchSize] = -1
-            onSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOn)
-            offSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOff)
-        
-            Y = torch.sign(torch.sum(onSimilarity-offSimilarity, axis=0))
-            Y[Y==0] = 1
-            Y = torch.reshape(Y, batch.shape)
-            X[:, batchViewStartIndex :batchViewStartIndex + currentBatchSize] = Y
-            batchViewStartIndex += currentBatchSize
+        neuronIndices = torch.arange(X.shape[0])
+        numNeuronBatches = np.ceil(X.shape[0] / neuronBatchSize).astype(int)
+        neuronBatches = torch.chunk(neuronIndices, numNeuronBatches)
+
+        numItemBatches = np.ceil(X.shape[1] / itemBatchSize).astype(int)
+        itemBatches = torch.chunk(X, numItemBatches, dim=1)
+        itemBatchViewStartIndex = 0
+        for itemBatchIndex in range(numItemBatches):
+            itemBatch = itemBatches[itemBatchIndex].detach()
+            currentItemBatchSize = itemBatch.shape[1]
+
+            neuronBatchViewStartIndex = 0
+            for neuronBatchIndex in range(numNeuronBatches):
+                neuronIndices = neuronBatches[neuronBatchIndex].detach()
+                neuronBatchNumIndices = neuronIndices.shape[0]
+
+                # First we make two tensors of shape (dimension, dimension*numNeuronIndices)
+                # 
+                # The first index walks over the dimension, while the second holds a flattened copy
+                # of each state in X. For each neuron in this neuronBatch there is an entire copy of 
+                # X with that particular index set to 1 (clampOn) or -1 (clampOff)
+                #
+                # So tiledStatesClampOn[0].reshape(X.shape) will return a tensor that looks
+                # exactly like X but the entire first dimension is set to 1.
+                tiledBatchClampOn = torch.tile(itemBatch, (1,neuronBatchNumIndices))
+                tiledBatchClampOff = torch.clone(tiledBatchClampOn)
+                for i, d in enumerate(neuronIndices):
+                    tiledBatchClampOn[d,i*currentItemBatchSize:(i+1)*currentItemBatchSize] = 1
+                    tiledBatchClampOff[d,i*currentItemBatchSize:(i+1)*currentItemBatchSize] = -1
+                onSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOn)
+                offSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOff)
+                
+                Y = torch.sign(torch.sum(onSimilarity-offSimilarity, axis=0))
+                Y[Y==0] = 1
+                Y = torch.reshape(Y, [neuronBatchNumIndices, currentItemBatchSize])
+                X[neuronBatchViewStartIndex:neuronBatchViewStartIndex+neuronBatchNumIndices, itemBatchViewStartIndex:itemBatchViewStartIndex + currentItemBatchSize] = Y
+                neuronBatchViewStartIndex += neuronBatchNumIndices
+            itemBatchViewStartIndex += currentItemBatchSize
 
     @torch.no_grad()
-    def relaxStates(self, X: torch.Tensor, maxIterations: int = 100, batchSize: int = None, verbose: bool = False):
+    def relaxStates(self, X: torch.Tensor, maxIterations: int = 100, verbose: bool = False):
         """
         Update the states some number of times.
 
         :param X: The tensor of states to step. 
             Tensor must be on the correct device and have shape (network.dimension, nStates)
         :param maxIterations: The integer number of iterations to update the states for.
-        :param batchSize: The size of batches. Defaults to None, which sets the batchSize to the number of states (X.shape[1])
         :param verbose: Flag to show progress bar
         """
         
         for _ in tqdm(range(maxIterations), desc="Relax States", disable=not verbose):
             X_prev = X.clone()
-            self.stepStates(X, batchSize=batchSize)
+            self.stepStates(X)
             if torch.all(X_prev == X):
                 break
         
