@@ -80,7 +80,6 @@ class ModernHopfieldNetwork():
         itemBatchSize = self.itemBatchSize if self.itemBatchSize is not None else X.shape[0]
         neuronBatchSize = self.neuronBatchSize if self.neuronBatchSize is not None else X.shape[0]
 
-
         neuronIndices = torch.arange(X.shape[0])
         numNeuronBatches = np.ceil(X.shape[0] / neuronBatchSize).astype(int)
         neuronBatches = torch.chunk(neuronIndices, numNeuronBatches)
