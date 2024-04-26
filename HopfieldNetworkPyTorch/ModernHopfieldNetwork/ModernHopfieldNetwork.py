@@ -224,20 +224,19 @@ class ModernHopfieldNetwork():
             itemBatchViewStartIndex += currentItemBatchSize
 
     @torch.no_grad()
-    def relaxStates(self, X: torch.Tensor, maxIterations: int = 100, batchSize: int = None, verbose: bool = False):
+    def relaxStates(self, X: torch.Tensor, maxIterations: int = 100, verbose: bool = False):
         """
         Update the states some number of times.
 
         :param X: The tensor of states to step. 
             Tensor must be on the correct device and have shape (network.dimension, nStates)
         :param maxIterations: The integer number of iterations to update the states for.
-        :param batchSize: The size of batches. Defaults to None, which sets the batchSize to the number of states (X.shape[1])
         :param verbose: Flag to show progress bar
         """
         
         for _ in tqdm(range(maxIterations), desc="Relax States", disable=not verbose):
             X_prev = X.clone()
-            self.stepStates(X, batchSize=batchSize)
+            self.stepStates(X)
             if torch.all(X_prev == X):
                 break
         
