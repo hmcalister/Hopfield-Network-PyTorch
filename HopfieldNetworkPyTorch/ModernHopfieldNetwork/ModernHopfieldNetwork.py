@@ -169,7 +169,7 @@ class ModernHopfieldNetwork():
     #     """
 
     @torch.no_grad()
-    def stepStates(self, X: torch.Tensor, batchSize: int = None):
+    def stepStates(self, X: torch.Tensor):
         """
         Step the given states according to the energy difference rule. 
         Step implies only a single update is made, no matter if the result is stable or not.
@@ -179,11 +179,8 @@ class ModernHopfieldNetwork():
 
         :param X: The tensor of states to step. 
             Tensor must be on the correct device and have shape (network.dimension, nStates)
-        :param batchSize: The size of batches. Defaults to None, which sets the batchSize to the number of states (X.shape[1])
         """
 
-        if batchSize is None:
-            batchSize = X.shape[1]
 
         numBatches = np.ceil(X.shape[1] / batchSize).astype(int)
         batches = torch.chunk(X, numBatches, dim=1)
