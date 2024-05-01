@@ -53,6 +53,7 @@ class ModernHopfieldNetwork():
                         finalTemperature: float = 100,
                         errorPower: int = 1,
                         precision: float = 1.0e-30,
+                        neuronMask: torch.Tensor = None,
                         verbose: int = 2,
                       ):
         """
@@ -70,6 +71,8 @@ class ModernHopfieldNetwork():
         :param finalTemperature: The final temperature of the network.
         :param errorPower: The power to apply to the error when summing the loss
         :param precision: The minimum precision of the weight update, avoids division by zero errors
+        :param neuronMask: A mask of neuron indices to learn. If passed, only the specified indices will be learned. Other indices will be clamped.
+            If None (default), all indices will be learned.
         :param verbose: An integer to indicate verbosity
             - 0: No output by epoch
             - 1: A progress bar over the epochs
