@@ -1,5 +1,6 @@
 import numpy as np
 from tqdm import tqdm
+from typing import Callable
 
 import torch
 
@@ -180,7 +181,7 @@ class ModernHopfieldNetwork():
     #     """
 
     @torch.no_grad()
-    def stepStates(self, X: torch.Tensor, neuronMask: torch.Tensor = None):
+    def stepStates(self, X: torch.Tensor, neuronMask: torch.Tensor = None, activationFunction: Callable = torch.sign):
         """
         Step the given states according to the energy difference rule. 
         Step implies only a single update is made, no matter if the result is stable or not.
@@ -192,6 +193,8 @@ class ModernHopfieldNetwork():
             Tensor must be on the correct device and have shape (network.dimension, nStates)
         :param neuronMask: A mask of neuron indices to update. If passed, only the specified indices are updated. Other indices will be clamped.
             If None (default), all indices will be updated.
+        :param activationFunction: The function to apply to the resulting step. For complex activation functions, use
+            currying via lambda (e.g. `lambda X: torch.nn.Softmax(dim=0)(X)`)
         """
 
         neuronMask = neuronMask if neuronMask is not None else torch.arange(X.shape[0])
@@ -221,8 +224,7 @@ class ModernHopfieldNetwork():
                 onSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOn)
                 offSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOff)
                 
-                Y = torch.sign(torch.sum(onSimilarity-offSimilarity, axis=0))
-                Y[Y==0] = 1
+                Y = activationFunction(torch.sum(onSimilarity-offSimilarity, axis=0))
                 Y = torch.reshape(Y, [neuronBatchNumIndices, currentItemBatchSize])
                 X[neuronBatchIndices[:, None], itemBatchIndices] = Y
 
