@@ -24,7 +24,7 @@ nStates = 100
 
 # Other hyperparameters for learning
 
-interactionVertex = 2
+interactionVertex = 3
 temperature = 50
 itemBatchSize = 20
 neuronBatchSize = 16
