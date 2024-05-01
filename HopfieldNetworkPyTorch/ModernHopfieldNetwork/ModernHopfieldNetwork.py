@@ -104,22 +104,23 @@ class ModernHopfieldNetwork():
         epochProgressbar = tqdm(range(maxEpochs), desc="Epoch", disable=(verbose!=1))
         for epoch in range(maxEpochs):
             epochTotalLoss = 0
+
+            # Shuffle the learned items so we are not learning the exact same batches each epoch
             shuffledIndices = torch.randperm(X.shape[1])
             X = X[:, shuffledIndices]
             
+            # Determine the value of beta for this epoch
             learningRate = initialLearningRate*learningRateDecay**epoch
             temperature = initialTemperature + (finalTemperature-initialTemperature) * epoch/maxEpochs
             beta = 1/(temperature**interactionVertex)
-            
-            numItemBatches = np.ceil(X.shape[1] / itemBatchSize).astype(int)
-            itemBatches = torch.chunk(X, numItemBatches, dim=1)
 
+            # Determine the batches for this epoch, based on the newly shuffled states and the previously calculated batch numbers
+            itemBatches = torch.chunk(X, numItemBatches, dim=1)
             for itemBatchIndex in range(numItemBatches):
                 itemBatch = itemBatches[itemBatchIndex].detach()
                 currentItemBatchSize = itemBatch.shape[1]
 
                 itemBatchLoss = 0
-                neuronBatchViewStartIndex = 0
                 for neuronBatchIndex in range(numNeuronBatches):
                     neuronIndices = neuronBatches[neuronBatchIndex].detach()
                     neuronBatchNumIndices = neuronIndices.shape[0]
@@ -133,9 +134,7 @@ class ModernHopfieldNetwork():
                     offSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOff)
                     Y = torch.tanh(beta*torch.sum(onSimilarity-offSimilarity, axis=0)).reshape([neuronBatchNumIndices, currentItemBatchSize])
                     
-                    neuronBatchLoss = torch.sum((Y - itemBatch[neuronBatchViewStartIndex:neuronBatchViewStartIndex+neuronBatchNumIndices])**(2*errorPower))
-                    neuronBatchLoss /= (currentItemBatchSize * self.dimension)
-                    neuronBatchViewStartIndex += neuronBatchNumIndices
+                    neuronBatchLoss = torch.sum((Y - itemBatch[neuronIndices])**(2*errorPower))
                     itemBatchLoss += neuronBatchLoss
 
                 itemBatchLoss.backward()
@@ -148,7 +147,7 @@ class ModernHopfieldNetwork():
                     self.memories -= learningRate * memoryGrads / maxGradMagnitudeTiled
                     self.memories = self.memories.clamp_(-1,1)
                     self.memories.grad = None
-                    epochTotalLoss += itemBatchLoss.item() 
+                    epochTotalLoss += itemBatchLoss.item() / (neuronMask.shape[0] * itemIndices.shape[0])
 
             history.append(epochTotalLoss)
             if verbose==1:
