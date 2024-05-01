@@ -227,19 +227,21 @@ class ModernHopfieldNetwork():
                 X[neuronBatchIndices[:, None], itemBatchIndices] = Y
 
     @torch.no_grad()
-    def relaxStates(self, X: torch.Tensor, maxIterations: int = 100, verbose: bool = False):
+    def relaxStates(self, X: torch.Tensor, maxIterations: int = 100, neuronMask: torch.Tensor = None, verbose: bool = False):
         """
         Update the states some number of times.
 
         :param X: The tensor of states to step. 
             Tensor must be on the correct device and have shape (network.dimension, nStates)
         :param maxIterations: The integer number of iterations to update the states for.
+        :param neuronMask: A mask of neuron indices to update. If passed, only the specified indices are updated. Other indices will be clamped.
+            If None (default), all indices will be updated.
         :param verbose: Flag to show progress bar
         """
         
         for _ in tqdm(range(maxIterations), desc="Relax States", disable=not verbose):
             X_prev = X.clone()
-            self.stepStates(X)
+            self.stepStates(X, neuronMask)
             if torch.all(X_prev == X):
                 break
         
