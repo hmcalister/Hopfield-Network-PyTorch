@@ -13,7 +13,7 @@ def measureSimilarities(learnedStates, states, trialStr):
 dimension = 100
 nMemories = 10
 nLearnedStates = 20
-nStates = 1000
+nStates = 100
 interactionVertex = 3
 temperature = 40
 itemBatchSize = None
