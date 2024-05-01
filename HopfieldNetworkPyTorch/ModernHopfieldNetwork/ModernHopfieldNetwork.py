@@ -53,6 +53,7 @@ class ModernHopfieldNetwork():
                         finalTemperature: float = 100,
                         errorPower: int = 1,
                         precision: float = 1.0e-30,
+                        neuronMask: torch.Tensor = None,
                         verbose: int = 2,
                       ):
         """
@@ -70,6 +71,8 @@ class ModernHopfieldNetwork():
         :param finalTemperature: The final temperature of the network.
         :param errorPower: The power to apply to the error when summing the loss
         :param precision: The minimum precision of the weight update, avoids division by zero errors
+        :param neuronMask: A mask of neuron indices to learn. If passed, only the specified indices will be learned. Other indices will be clamped.
+            If None (default), all indices will be learned.
         :param verbose: An integer to indicate verbosity
             - 0: No output by epoch
             - 1: A progress bar over the epochs
@@ -77,36 +80,47 @@ class ModernHopfieldNetwork():
         :return: A list of the loss history over the epochs
         """
 
-        itemBatchSize = self.itemBatchSize if self.itemBatchSize is not None else X.shape[0]
+        # The neurons to train, either masked by the function call or all neurons
+        neuronMask = neuronMask if neuronMask is not None else torch.arange(X.shape[0])
+        # The size of neuron-wise batches. If not passed, use all neurons in one batch
         neuronBatchSize = self.neuronBatchSize if self.neuronBatchSize is not None else X.shape[0]
+        # Calculate the number of neuron batches. Note this will smooth the number of neurons in each batch,
+        # so the passed neuronBatchSize is more of an upper limit
+        numNeuronBatches = np.ceil(neuronMask.shape[0] / neuronBatchSize).astype(int)
+        # Get the neuron batches, sets of indices to train at once
+        neuronBatches = torch.chunk(neuronMask, numNeuronBatches)
 
-        neuronIndices = torch.arange(X.shape[0])
-        numNeuronBatches = np.ceil(X.shape[0] / neuronBatchSize).astype(int)
-        neuronBatches = torch.chunk(neuronIndices, numNeuronBatches)
+        # A tensor of all item indices
+        itemIndices = torch.arange(X.shape[1])
+        # The size of the item-wise batches. If not passed, use all items in one batch
+        itemBatchSize = self.itemBatchSize if self.itemBatchSize is not None else X.shape[1]
+        # Calculate the number of item batches. Note this will smooth the number of items in each batch,
+        # so the passed itemBatchSize is more of an upper limit
+        numItemBatches = np.ceil(itemIndices.shape[0] / itemBatchSize).astype(int)
 
         history = []
-        memoryGrads = torch.zeros_like(self.memories).to(self.memories.device)
         interactionVertex = self.interactionFunction.n
-        
+        memoryGrads = torch.zeros_like(self.memories).to(self.memories.device)
         epochProgressbar = tqdm(range(maxEpochs), desc="Epoch", disable=(verbose!=1))
         for epoch in range(maxEpochs):
             epochTotalLoss = 0
+
+            # Shuffle the learned items so we are not learning the exact same batches each epoch
             shuffledIndices = torch.randperm(X.shape[1])
             X = X[:, shuffledIndices]
             
+            # Determine the value of beta for this epoch
             learningRate = initialLearningRate*learningRateDecay**epoch
             temperature = initialTemperature + (finalTemperature-initialTemperature) * epoch/maxEpochs
             beta = 1/(temperature**interactionVertex)
-            
-            numItemBatches = np.ceil(X.shape[1] / itemBatchSize).astype(int)
-            itemBatches = torch.chunk(X, numItemBatches, dim=1)
 
+            # Determine the batches for this epoch, based on the newly shuffled states and the previously calculated batch numbers
+            itemBatches = torch.chunk(X, numItemBatches, dim=1)
             for itemBatchIndex in range(numItemBatches):
                 itemBatch = itemBatches[itemBatchIndex].detach()
                 currentItemBatchSize = itemBatch.shape[1]
 
                 itemBatchLoss = 0
-                neuronBatchViewStartIndex = 0
                 for neuronBatchIndex in range(numNeuronBatches):
                     neuronIndices = neuronBatches[neuronBatchIndex].detach()
                     neuronBatchNumIndices = neuronIndices.shape[0]
@@ -120,9 +134,7 @@ class ModernHopfieldNetwork():
                     offSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOff)
                     Y = torch.tanh(beta*torch.sum(onSimilarity-offSimilarity, axis=0)).reshape([neuronBatchNumIndices, currentItemBatchSize])
                     
-                    neuronBatchLoss = torch.sum((Y - itemBatch[neuronBatchViewStartIndex:neuronBatchViewStartIndex+neuronBatchNumIndices])**(2*errorPower))
-                    neuronBatchLoss /= (currentItemBatchSize * self.dimension)
-                    neuronBatchViewStartIndex += neuronBatchNumIndices
+                    neuronBatchLoss = torch.sum((Y - itemBatch[neuronIndices])**(2*errorPower))
                     itemBatchLoss += neuronBatchLoss
 
                 itemBatchLoss.backward()
@@ -135,7 +147,7 @@ class ModernHopfieldNetwork():
                     self.memories -= learningRate * memoryGrads / maxGradMagnitudeTiled
                     self.memories = self.memories.clamp_(-1,1)
                     self.memories.grad = None
-                    epochTotalLoss += itemBatchLoss.item() 
+                    epochTotalLoss += itemBatchLoss.item() / (neuronMask.shape[0] * itemIndices.shape[0])
 
             history.append(epochTotalLoss)
             if verbose==1:
@@ -168,7 +180,7 @@ class ModernHopfieldNetwork():
     #     """
 
     @torch.no_grad()
-    def stepStates(self, X: torch.Tensor):
+    def stepStates(self, X: torch.Tensor, neuronMask: torch.Tensor = None):
         """
         Step the given states according to the energy difference rule. 
         Step implies only a single update is made, no matter if the result is stable or not.
@@ -178,38 +190,32 @@ class ModernHopfieldNetwork():
 
         :param X: The tensor of states to step. 
             Tensor must be on the correct device and have shape (network.dimension, nStates)
+        :param neuronMask: A mask of neuron indices to update. If passed, only the specified indices are updated. Other indices will be clamped.
+            If None (default), all indices will be updated.
         """
 
-        itemBatchSize = self.itemBatchSize if self.itemBatchSize is not None else X.shape[0]
+        neuronMask = neuronMask if neuronMask is not None else torch.arange(X.shape[0])
         neuronBatchSize = self.neuronBatchSize if self.neuronBatchSize is not None else X.shape[0]
+        numNeuronBatches = np.ceil(neuronMask.shape[0] / neuronBatchSize).astype(int)
+        neuronIndexBatches = torch.chunk(neuronMask, numNeuronBatches)
 
-        neuronIndices = torch.arange(X.shape[0])
-        numNeuronBatches = np.ceil(X.shape[0] / neuronBatchSize).astype(int)
-        neuronBatches = torch.chunk(neuronIndices, numNeuronBatches)
+        itemIndices = torch.arange(X.shape[1])
+        itemBatchSize = self.itemBatchSize if self.itemBatchSize is not None else X.shape[1]
+        numItemBatches = np.ceil(itemIndices.shape[0] / itemBatchSize).astype(int)
+        itemIndexBatches = torch.chunk(itemIndices, numItemBatches)
 
-        numItemBatches = np.ceil(X.shape[1] / itemBatchSize).astype(int)
-        itemBatches = torch.chunk(X, numItemBatches, dim=1)
-        itemBatchViewStartIndex = 0
-        for itemBatchIndex in range(numItemBatches):
-            itemBatch = itemBatches[itemBatchIndex].detach()
-            currentItemBatchSize = itemBatch.shape[1]
+        for itemBatchIndices in itemIndexBatches:
+            itemBatchIndices = itemBatchIndices.detach()
+            currentItemBatchSize = itemBatchIndices.shape[0]
+            items = X[:, itemBatchIndices]
 
-            neuronBatchViewStartIndex = 0
-            for neuronBatchIndex in range(numNeuronBatches):
-                neuronIndices = neuronBatches[neuronBatchIndex].detach()
-                neuronBatchNumIndices = neuronIndices.shape[0]
+            for neuronBatchIndices in neuronIndexBatches:
+                neuronBatchIndices = neuronBatchIndices.detach()
+                neuronBatchNumIndices = neuronBatchIndices.shape[0]
 
-                # First we make two tensors of shape (dimension, dimension*numNeuronIndices)
-                # 
-                # The first index walks over the dimension, while the second holds a flattened copy
-                # of each state in X. For each neuron in this neuronBatch there is an entire copy of 
-                # X with that particular index set to 1 (clampOn) or -1 (clampOff)
-                #
-                # So tiledStatesClampOn[0].reshape(X.shape) will return a tensor that looks
-                # exactly like X but the entire first dimension is set to 1.
-                tiledBatchClampOn = torch.tile(itemBatch, (1,neuronBatchNumIndices))
+                tiledBatchClampOn = torch.tile(items, (1,neuronBatchNumIndices))
                 tiledBatchClampOff = torch.clone(tiledBatchClampOn)
-                for i, d in enumerate(neuronIndices):
+                for i, d in enumerate(neuronBatchIndices):
                     tiledBatchClampOn[d,i*currentItemBatchSize:(i+1)*currentItemBatchSize] = 1
                     tiledBatchClampOff[d,i*currentItemBatchSize:(i+1)*currentItemBatchSize] = -1
                 onSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOn)
@@ -218,24 +224,24 @@ class ModernHopfieldNetwork():
                 Y = torch.sign(torch.sum(onSimilarity-offSimilarity, axis=0))
                 Y[Y==0] = 1
                 Y = torch.reshape(Y, [neuronBatchNumIndices, currentItemBatchSize])
-                X[neuronBatchViewStartIndex:neuronBatchViewStartIndex+neuronBatchNumIndices, itemBatchViewStartIndex:itemBatchViewStartIndex + currentItemBatchSize] = Y
-                neuronBatchViewStartIndex += neuronBatchNumIndices
-            itemBatchViewStartIndex += currentItemBatchSize
+                X[neuronBatchIndices[:, None], itemBatchIndices] = Y
 
     @torch.no_grad()
-    def relaxStates(self, X: torch.Tensor, maxIterations: int = 100, verbose: bool = False):
+    def relaxStates(self, X: torch.Tensor, maxIterations: int = 100, neuronMask: torch.Tensor = None, verbose: bool = False):
         """
         Update the states some number of times.
 
         :param X: The tensor of states to step. 
             Tensor must be on the correct device and have shape (network.dimension, nStates)
         :param maxIterations: The integer number of iterations to update the states for.
+        :param neuronMask: A mask of neuron indices to update. If passed, only the specified indices are updated. Other indices will be clamped.
+            If None (default), all indices will be updated.
         :param verbose: Flag to show progress bar
         """
         
         for _ in tqdm(range(maxIterations), desc="Relax States", disable=not verbose):
             X_prev = X.clone()
-            self.stepStates(X)
+            self.stepStates(X, neuronMask)
             if torch.all(X_prev == X):
                 break
         
