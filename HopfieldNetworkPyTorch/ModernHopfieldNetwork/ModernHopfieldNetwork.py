@@ -80,17 +80,27 @@ class ModernHopfieldNetwork():
         :return: A list of the loss history over the epochs
         """
 
-        itemBatchSize = self.itemBatchSize if self.itemBatchSize is not None else X.shape[0]
+        # The neurons to train, either masked by the function call or all neurons
+        neuronMask = neuronMask if neuronMask is not None else torch.arange(X.shape[0])
+        # The size of neuron-wise batches. If not passed, use all neurons in one batch
         neuronBatchSize = self.neuronBatchSize if self.neuronBatchSize is not None else X.shape[0]
+        # Calculate the number of neuron batches. Note this will smooth the number of neurons in each batch,
+        # so the passed neuronBatchSize is more of an upper limit
+        numNeuronBatches = np.ceil(neuronMask.shape[0] / neuronBatchSize).astype(int)
+        # Get the neuron batches, sets of indices to train at once
+        neuronBatches = torch.chunk(neuronMask, numNeuronBatches)
 
-        neuronIndices = torch.arange(X.shape[0])
-        numNeuronBatches = np.ceil(X.shape[0] / neuronBatchSize).astype(int)
-        neuronBatches = torch.chunk(neuronIndices, numNeuronBatches)
+        # A tensor of all item indices
+        itemIndices = torch.arange(X.shape[1])
+        # The size of the item-wise batches. If not passed, use all items in one batch
+        itemBatchSize = self.itemBatchSize if self.itemBatchSize is not None else X.shape[1]
+        # Calculate the number of item batches. Note this will smooth the number of items in each batch,
+        # so the passed itemBatchSize is more of an upper limit
+        numItemBatches = np.ceil(itemIndices.shape[0] / itemBatchSize).astype(int)
 
         history = []
-        memoryGrads = torch.zeros_like(self.memories).to(self.memories.device)
         interactionVertex = self.interactionFunction.n
-        
+        memoryGrads = torch.zeros_like(self.memories).to(self.memories.device)
         epochProgressbar = tqdm(range(maxEpochs), desc="Epoch", disable=(verbose!=1))
         for epoch in range(maxEpochs):
             epochTotalLoss = 0
