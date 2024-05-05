@@ -83,9 +83,9 @@ class ModernHopfieldNetwork():
         """
 
         # The neurons to train, either masked by the function call or all neurons
-        neuronMask = neuronMask if neuronMask is not None else torch.arange(X.shape[0])
+        neuronMask = neuronMask if neuronMask is not None else torch.arange(self.dimension)
         # The size of neuron-wise batches. If not passed, use all neurons in one batch
-        neuronBatchSize = self.neuronBatchSize if self.neuronBatchSize is not None else X.shape[0]
+        neuronBatchSize = self.neuronBatchSize if self.neuronBatchSize is not None else self.dimension
         # Calculate the number of neuron batches. Note this will smooth the number of neurons in each batch,
         # so the passed neuronBatchSize is more of an upper limit
         numNeuronBatches = np.ceil(neuronMask.shape[0] / neuronBatchSize).astype(int)
@@ -132,8 +132,8 @@ class ModernHopfieldNetwork():
                     for i, d in enumerate(neuronIndices):
                         tiledBatchClampOn[d,i*currentItemBatchSize:(i+1)*currentItemBatchSize] = 1
                         tiledBatchClampOff[d,i*currentItemBatchSize:(i+1)*currentItemBatchSize] = -1
-                    onSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOn)
-                    offSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOff)
+                    onSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOn / self.dimension)
+                    offSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOff / self.dimension)
                     Y = torch.tanh(beta*torch.sum(onSimilarity-offSimilarity, axis=0)).reshape([neuronBatchNumIndices, currentItemBatchSize])
                     
                     neuronBatchLoss = torch.sum((Y - itemBatch[neuronIndices])**(2*errorPower))
@@ -198,8 +198,8 @@ class ModernHopfieldNetwork():
             currying via lambda (e.g. `lambda X: torch.nn.Softmax(dim=0)(X)`)
         """
 
-        neuronMask = neuronMask if neuronMask is not None else torch.arange(X.shape[0])
-        neuronBatchSize = self.neuronBatchSize if self.neuronBatchSize is not None else X.shape[0]
+        neuronMask = neuronMask if neuronMask is not None else torch.arange(self.dimension)
+        neuronBatchSize = self.neuronBatchSize if self.neuronBatchSize is not None else self.dimension
         numNeuronBatches = np.ceil(neuronMask.shape[0] / neuronBatchSize).astype(int)
         neuronIndexBatches = torch.chunk(neuronMask, numNeuronBatches)
 
