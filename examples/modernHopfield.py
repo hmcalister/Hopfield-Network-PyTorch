@@ -11,23 +11,23 @@ def measureSimilarities(learnedStates, states, trialStr):
     print("\tFinal State Average Standard Deviation of Similarity:\t", torch.std(mostSimilar).item())
 
 # The dimension of the Hopfield Network
-dimension = 64
+dimension = 100
 
 # The number of memory vectors to use, only for Learned Memory Storage
-nMemories = 10
+nMemories = 100
 
 # The number of states to learn
-nLearnedStates = 20
+nLearnedStates = 25
 
 # The number of probe states
 nStates = 100
 
 # Other hyperparameters for learning
 
-interactionVertex = 3
-temperature = 50
-itemBatchSize = 20
-neuronBatchSize = 16
+interactionVertex = 5
+temperature = 100
+itemBatchSize = None
+neuronBatchSize = None
 
 learnedStates = createBipolarStates(dimension, nLearnedStates).to(device)
 X = createBipolarStates(dimension, nStates).to(device)
@@ -54,12 +54,12 @@ measureSimilarities(learnedStates, x, "Direct Memory Storage")
 network = ModernHopfieldNetwork(dimension, nMemories, device, interactionFunc, itemBatchSize, neuronBatchSize)
 network.learnMemories(learnedStates,
                         maxEpochs = 500,
-                        initialLearningRate = 1e-2,
+                        initialLearningRate = 1e-1,
                         learningRateDecay = 0.999,
                         momentum = 0.6,
                         initialTemperature=temperature,
                         finalTemperature=temperature,
-                        errorPower = 2,
+                        errorPower = 1,
                         verbose=1
                     )
 
