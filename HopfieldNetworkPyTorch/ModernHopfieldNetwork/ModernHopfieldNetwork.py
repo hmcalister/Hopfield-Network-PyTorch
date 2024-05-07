@@ -112,11 +112,12 @@ class ModernHopfieldNetwork():
             shuffledIndices = torch.randperm(X.shape[1])
             X = X[:, shuffledIndices]
             
-            # Determine the value of beta for this epoch
             learningRate = initialLearningRate*learningRateDecay**epoch
             temperature = initialTemperature + (finalTemperature-initialTemperature) * epoch/maxEpochs
-            beta = 1/(temperature**interactionVertex)
 
+            # Determine the value of beta for this epoch
+            beta = 1/(temperature)
+            
             # Determine the batches for this epoch, based on the newly shuffled states and the previously calculated batch numbers
             itemBatches = torch.chunk(X, numItemBatches, dim=1)
             for itemBatchIndex in range(numItemBatches):
@@ -133,9 +134,9 @@ class ModernHopfieldNetwork():
                     for i, d in enumerate(neuronIndices):
                         tiledBatchClampOn[d,i*currentItemBatchSize:(i+1)*currentItemBatchSize] = 1
                         tiledBatchClampOff[d,i*currentItemBatchSize:(i+1)*currentItemBatchSize] = -1
-                    onSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOn / self.dimension)
-                    offSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOff / self.dimension)
-                    Y = torch.tanh(beta*torch.sum(onSimilarity-offSimilarity, axis=0)).reshape([neuronBatchNumIndices, currentItemBatchSize])
+                    onSimilarity = self.interactionFunction(beta*(self.memories.T @ tiledBatchClampOn))
+                    offSimilarity = self.interactionFunction(beta*(self.memories.T @ tiledBatchClampOff))
+                    Y = torch.tanh(torch.sum(onSimilarity-offSimilarity, axis=0)).reshape([neuronBatchNumIndices, currentItemBatchSize])
                     
                     neuronBatchLoss = torch.sum((Y - itemBatch[neuronIndices])**(2*errorPower))
                     itemBatchLoss += neuronBatchLoss
