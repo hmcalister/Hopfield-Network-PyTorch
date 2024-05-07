@@ -5,13 +5,15 @@ import torch
 from .LearningRule import AbstractLearningRule
 
 class HopfieldNetwork():
-    def __init__(self, dimension: int, learningRule: AbstractLearningRule, torchDevice: str):
+    def __init__(self, dimension: int, learningRule: AbstractLearningRule, torchDevice: str, itemBatchSize: int = None, neuronBatchSize: int = None):
         """
         Create a new Hopfield Network of the specified dimension.
 
         :param dimension: The dimension of the network.
         :param learningRule: The learning rule. Must implement LearningRule.AbstractLearningRule
-        :param torchDevice:  The pytorch device to store the weight matrix on.
+        :param torchDevice:  The pytorch device to store the memories on, e.g. "cpu" or "cuda".
+        :param itemBatchSize: Sets the batch size for items, i.e. how many items are processed at once. None (default) indicates no batching, process all items at once.
+        :param neuronBatchSize: Sets the batch size for neurons, i.e. how many neurons are processed at once. None (default) indicates no batching, process all neurons at once.
         """
 
         # The dimension of the network
@@ -22,6 +24,15 @@ class HopfieldNetwork():
 
         # Initialize the weight matrix to zeros
         self.weightMatrix = torch.zeros(size=(dimension, dimension)).to(torchDevice)
+
+        self.itemBatchSize = itemBatchSize
+        self.neuronBatchSize = neuronBatchSize
+
+    def setItemBatchSize(self, itemBatchSize: int) :
+        self.itemBatchSize = itemBatchSize
+
+    def setNeuronBatchSize(self, neuronBatchSize: int) :
+        self.neuronBatchSize = neuronBatchSize
 
     def learnMemories(self, X: torch.Tensor):
         """
@@ -59,37 +70,63 @@ class HopfieldNetwork():
         
         return torch.all(self.energy(X)<=0, axis=0)
 
-    def stepStates(self, X: torch.Tensor):
+    def stepStates(self, X: torch.Tensor, neuronMask: torch.Tensor = None,):
         """
         Step the given states by updating all neurons once.
         Note the tensor given is updated in place, so clone the tensor beforehand if required.
         
         :param X torch.Tensor: States, a tensor of shape (network.dimension, numStates).
+        :param neuronMask: A mask of neuron indices to update. If passed, only the specified indices are updated. Other indices will be clamped.
+            If None (default), all indices will be updated.
         """
+
+        neuronMask = neuronMask if neuronMask is not None else torch.arange(X.shape[0])
+        neuronBatchSize = self.neuronBatchSize if self.neuronBatchSize is not None else X.shape[0]
+        numNeuronBatches = np.ceil(neuronMask.shape[0] / neuronBatchSize).astype(int)
+        neuronIndexBatches = torch.chunk(neuronMask, numNeuronBatches)
+
+        itemIndices = torch.arange(X.shape[1])
+        itemBatchSize = self.itemBatchSize if self.itemBatchSize is not None else X.shape[1]
+        numItemBatches = np.ceil(itemIndices.shape[0] / itemBatchSize).astype(int)
+        itemIndexBatches = torch.chunk(itemIndices, numItemBatches)
 
         updateOrder = np.arange(self.dimension)
         np.random.shuffle(updateOrder)
 
-        for neuronIndex in updateOrder:
-            stateFields = torch.matmul(self.weightMatrix[neuronIndex], X)
-            X[neuronIndex, stateFields<=0] = -1
-            X[neuronIndex, stateFields>0] = 1
+        for itemBatchIndices in itemIndexBatches:
+            currentItemBatchSize = itemBatchIndices.shape[0]
+            items = X[:, itemBatchIndices]
+
+            for neuronBatchIndices in neuronIndexBatches:
+                neuronBatchNumIndices = neuronBatchIndices.shape[0]
+
+                stateFields = torch.matmul(self.weightMatrix[neuronIndex], X)
+                X[neuronIndex, stateFields<=0] = -1
+                X[neuronIndex, stateFields>0] = 1
         
-    def relaxStates(self, X: torch.Tensor, maxIterations: int=100, verbose: bool=False):
+    def relaxStates(self, X: torch.Tensor, 
+                    maxIterations: int=100, 
+                    neuronMask: torch.Tensor = None,
+                    verbose: bool = False,
+                    ):
         """
         Relax the given states until either all states are stable, or a specified number of epochs (network.maxEpochs) is reached.
         Note the tensor given is updated in place, so clone the tensor beforehand if required.
 
         :param X torch.Tensor: States, a tensor of shape (network.dimension, numStates).
         :param maxIterations int: The maximum number of iterations to relax states for
-        :param verbose bool: Boolean to show progress bar
+        :param neuronMask: A mask of neuron indices to update during learning. 
+            If passed, only the specified indices will be updated (have energy difference calculated). Other indices will be clamped.
+            If None (default), all indices will be updated.
+        :param verbose: Flag to show progress bar
         """
         
+
         epoch = 0
         epochsProgressbar = tqdm(total=maxIterations, desc="Relax States", disable=not verbose)
         # loop while not everything is stable and the epoch is below the maximum reached
         while not torch.all(self.stable(X)) and epoch < maxIterations:
-            self.stepStates(X)
+            self.stepStates(X, neuronMask)
             epoch+=1
             epochsProgressbar.update(1)
         epochsProgressbar.close()
