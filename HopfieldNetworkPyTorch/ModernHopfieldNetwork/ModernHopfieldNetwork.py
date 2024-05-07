@@ -117,7 +117,7 @@ class ModernHopfieldNetwork():
 
             # Determine the value of beta for this epoch
             beta = 1/(temperature)
-            
+
             # Determine the batches for this epoch, based on the newly shuffled states and the previously calculated batch numbers
             itemBatches = torch.chunk(X, numItemBatches, dim=1)
             for itemBatchIndex in range(numItemBatches):
