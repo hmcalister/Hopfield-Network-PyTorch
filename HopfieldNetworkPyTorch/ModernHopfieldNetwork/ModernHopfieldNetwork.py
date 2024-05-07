@@ -102,7 +102,6 @@ class ModernHopfieldNetwork():
         numItemBatches = np.ceil(itemIndices.shape[0] / itemBatchSize).astype(int)
 
         history = []
-        interactionVertex = self.interactionFunction.n
         memoryGrads = torch.zeros_like(self.memories).to(self.memories.device)
         epochProgressbar = tqdm(range(maxEpochs), desc="Epoch", disable=(verbose!=1))
         for epoch in range(maxEpochs):
