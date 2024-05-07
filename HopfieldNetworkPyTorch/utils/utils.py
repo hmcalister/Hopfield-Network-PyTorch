@@ -10,6 +10,6 @@ def createBipolarStates(dimension: int, numStates: int) -> torch.Tensor:
     :returns: A tensor of shape (dimension, numStates) representing the bipolar states.
     """
 
-    X = 0.5*torch.ones(size=(dimension, numStates))
+    X = 0.5*torch.ones(size=(dimension, numStates), dtype=torch.float64)
     X = 2*torch.bernoulli(X)-1
     return X
