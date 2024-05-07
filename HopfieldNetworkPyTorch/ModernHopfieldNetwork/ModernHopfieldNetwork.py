@@ -23,7 +23,7 @@ class ModernHopfieldNetwork():
         """
         
         self.dimension = dimension
-        self.memories = torch.rand(size=(self.dimension, nMemories), requires_grad=True, device=torchDevice)
+        self.memories = torch.rand(size=(self.dimension, nMemories), requires_grad=True, device=torchDevice, dtype=torch.float64)
         self.interactionFunction = interactionFunction
 
         self.itemBatchSize = itemBatchSize
