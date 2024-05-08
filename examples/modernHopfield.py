@@ -25,7 +25,7 @@ nStates = 100
 # Other hyperparameters for learning
 
 interactionVertex = 5
-temperature = 100
+temperature = 50
 itemBatchSize = None
 neuronBatchSize = None
 
@@ -54,7 +54,7 @@ measureSimilarities(learnedStates, x, "Direct Memory Storage")
 network = ModernHopfieldNetwork(dimension, nMemories, device, interactionFunc, itemBatchSize, neuronBatchSize)
 network.learnMemories(learnedStates,
                         maxEpochs = 500,
-                        initialLearningRate = 1e-1,
+                        initialLearningRate = 2e-1,
                         learningRateDecay = 0.999,
                         momentum = 0.6,
                         initialTemperature=temperature,
