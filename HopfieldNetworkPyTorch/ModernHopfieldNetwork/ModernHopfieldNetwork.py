@@ -133,8 +133,8 @@ class ModernHopfieldNetwork():
                     for i, d in enumerate(neuronIndices):
                         tiledBatchClampOn[d,i*currentItemBatchSize:(i+1)*currentItemBatchSize] = 1
                         tiledBatchClampOff[d,i*currentItemBatchSize:(i+1)*currentItemBatchSize] = -1
-                    onSimilarity = self.interactionFunction(beta*(self.memories.T @ tiledBatchClampOn))
-                    offSimilarity = self.interactionFunction(beta*(self.memories.T @ tiledBatchClampOff))
+                    onSimilarity = self.interactionFunction((beta / self.dimension) * (self.memories.T @ tiledBatchClampOn))
+                    offSimilarity = self.interactionFunction((beta / self.dimension) * (self.memories.T @ tiledBatchClampOff))
                     Y = torch.tanh(torch.sum(onSimilarity-offSimilarity, axis=0)).reshape([neuronBatchNumIndices, currentItemBatchSize])
                     
                     neuronBatchLoss = torch.sum((Y - itemBatch[neuronIndices])**(2*errorPower))
