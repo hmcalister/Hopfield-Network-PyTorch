@@ -183,7 +183,7 @@ class ModernHopfieldNetwork():
     #     """
 
     @torch.no_grad()
-    def stepStates(self, X: torch.Tensor, neuronMask: torch.Tensor = None, activationFunction: Callable = torch.sign):
+    def stepStates(self, X: torch.Tensor, neuronMask: torch.Tensor = None, activationFunction: Callable = torch.sign, scalingFactor: float = 1.0):
         """
         Step the given states according to the energy difference rule. 
         Step implies only a single update is made, no matter if the result is stable or not.
@@ -197,6 +197,9 @@ class ModernHopfieldNetwork():
             If None (default), all indices will be updated.
         :param activationFunction: The function to apply to the resulting step. For complex activation functions, use
             currying via lambda (e.g. `lambda X: torch.nn.Softmax(dim=0)(X)`)
+        :param scalingFactor: A scaling factor to multiply similarity measure by before passing into the activation function.
+            This can improve performance for interaction functions without inverses, such as RePOLY. 
+            If your interaction function has an inverse, this should have no effect and can be left as 1.0
         """
 
         neuronMask = neuronMask if neuronMask is not None else torch.arange(self.dimension)
@@ -223,8 +226,8 @@ class ModernHopfieldNetwork():
                 for i, d in enumerate(neuronBatchIndices):
                     tiledBatchClampOn[d,i*currentItemBatchSize:(i+1)*currentItemBatchSize] = 1
                     tiledBatchClampOff[d,i*currentItemBatchSize:(i+1)*currentItemBatchSize] = -1
-                onSimilarity = self.interactionFunction((1 / self.dimension) * (self.memories.T @ tiledBatchClampOn))
-                offSimilarity = self.interactionFunction((1 / self.dimension) * (self.memories.T @ tiledBatchClampOff))
+                onSimilarity = self.interactionFunction((scalingFactor / self.dimension) * (self.memories.T @ tiledBatchClampOn))
+                offSimilarity = self.interactionFunction((scalingFactor / self.dimension) * (self.memories.T @ tiledBatchClampOff))
                 
                 Y = activationFunction(torch.sum(onSimilarity-offSimilarity, axis=0)).reshape([neuronBatchNumIndices, currentItemBatchSize])
                 X[neuronBatchIndices[:, None], itemBatchIndices] = Y
