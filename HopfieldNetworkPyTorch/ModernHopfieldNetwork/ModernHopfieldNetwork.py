@@ -226,8 +226,7 @@ class ModernHopfieldNetwork():
                 onSimilarity = self.interactionFunction((1 / self.dimension) * (self.memories.T @ tiledBatchClampOn))
                 offSimilarity = self.interactionFunction((1 / self.dimension) * (self.memories.T @ tiledBatchClampOff))
                 
-                Y = activationFunction(torch.sum(onSimilarity-offSimilarity, axis=0))
-                Y = torch.reshape(Y, [neuronBatchNumIndices, currentItemBatchSize])
+                Y = activationFunction(torch.sum(onSimilarity-offSimilarity, axis=0)).reshape([neuronBatchNumIndices, currentItemBatchSize])
                 X[neuronBatchIndices[:, None], itemBatchIndices] = Y
 
     @torch.no_grad()
