@@ -4,6 +4,8 @@ from typing import Callable
 
 import torch
 
+from HopfieldNetworkPyTorch import utils
+
 from .InteractionFunction import AbstractInteractionFunction
 
 class ModernHopfieldNetwork():
@@ -182,7 +184,7 @@ class ModernHopfieldNetwork():
     #     """
 
     @torch.no_grad()
-    def stepStates(self, X: torch.Tensor, neuronMask: torch.Tensor = None, activationFunction: Callable = torch.sign):
+    def stepStates(self, X: torch.Tensor, neuronMask: torch.Tensor = None, activationFunction: Callable = utils.BipolarHeaviside):
         """
         Step the given states according to the energy difference rule. 
         Step implies only a single update is made, no matter if the result is stable or not.
