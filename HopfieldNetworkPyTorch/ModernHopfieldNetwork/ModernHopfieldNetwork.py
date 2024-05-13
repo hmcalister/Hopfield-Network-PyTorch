@@ -26,6 +26,7 @@ class ModernHopfieldNetwork():
         
         self.dimension = dimension
         self.memories = torch.rand(size=(self.dimension, nMemories), requires_grad=True, device=torchDevice, dtype=torch.float64)
+        self.memories.clamp(-1,1)
         self.interactionFunction = interactionFunction
 
         self.itemBatchSize = itemBatchSize
@@ -85,9 +86,9 @@ class ModernHopfieldNetwork():
         """
 
         # The neurons to train, either masked by the function call or all neurons
-        neuronMask = neuronMask if neuronMask is not None else torch.arange(X.shape[0])
+        neuronMask = neuronMask if neuronMask is not None else torch.arange(self.dimension)
         # The size of neuron-wise batches. If not passed, use all neurons in one batch
-        neuronBatchSize = self.neuronBatchSize if self.neuronBatchSize is not None else X.shape[0]
+        neuronBatchSize = self.neuronBatchSize if self.neuronBatchSize is not None else self.dimension
         # Calculate the number of neuron batches. Note this will smooth the number of neurons in each batch,
         # so the passed neuronBatchSize is more of an upper limit
         numNeuronBatches = np.ceil(neuronMask.shape[0] / neuronBatchSize).astype(int)
@@ -103,7 +104,6 @@ class ModernHopfieldNetwork():
         numItemBatches = np.ceil(itemIndices.shape[0] / itemBatchSize).astype(int)
 
         history = []
-        interactionVertex = self.interactionFunction.n
         memoryGrads = torch.zeros_like(self.memories).to(self.memories.device)
         epochProgressbar = tqdm(range(maxEpochs), desc="Epoch", disable=(verbose!=1))
         for epoch in range(maxEpochs):
@@ -113,10 +113,11 @@ class ModernHopfieldNetwork():
             shuffledIndices = torch.randperm(X.shape[1])
             X = X[:, shuffledIndices]
             
-            # Determine the value of beta for this epoch
             learningRate = initialLearningRate*learningRateDecay**epoch
             temperature = initialTemperature + (finalTemperature-initialTemperature) * epoch/maxEpochs
-            beta = 1/(temperature**interactionVertex)
+
+            # Determine the value of beta for this epoch
+            beta = 1/(temperature)
 
             # Determine the batches for this epoch, based on the newly shuffled states and the previously calculated batch numbers
             itemBatches = torch.chunk(X, numItemBatches, dim=1)
@@ -134,9 +135,9 @@ class ModernHopfieldNetwork():
                     for i, d in enumerate(neuronIndices):
                         tiledBatchClampOn[d,i*currentItemBatchSize:(i+1)*currentItemBatchSize] = 1
                         tiledBatchClampOff[d,i*currentItemBatchSize:(i+1)*currentItemBatchSize] = -1
-                    onSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOn)
-                    offSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOff)
-                    Y = torch.tanh(beta*torch.sum(onSimilarity-offSimilarity, axis=0)).reshape([neuronBatchNumIndices, currentItemBatchSize])
+                    onSimilarity = self.interactionFunction((beta / self.dimension) * (self.memories.T @ tiledBatchClampOn))
+                    offSimilarity = self.interactionFunction((beta / self.dimension) * (self.memories.T @ tiledBatchClampOff))
+                    Y = torch.tanh(torch.sum(onSimilarity-offSimilarity, axis=0)).reshape([neuronBatchNumIndices, currentItemBatchSize])
                     
                     neuronBatchLoss = torch.sum((Y - itemBatch[neuronIndices])**(2*errorPower))
                     itemBatchLoss += neuronBatchLoss
@@ -184,7 +185,7 @@ class ModernHopfieldNetwork():
     #     """
 
     @torch.no_grad()
-    def stepStates(self, X: torch.Tensor, neuronMask: torch.Tensor = None, activationFunction: Callable = utils.BipolarHeaviside):
+    def stepStates(self, X: torch.Tensor, neuronMask: torch.Tensor = None, activationFunction: Callable = utils.BipolarHeaviside, scalingFactor: float = 1.0):
         """
         Step the given states according to the energy difference rule. 
         Step implies only a single update is made, no matter if the result is stable or not.
@@ -198,10 +199,13 @@ class ModernHopfieldNetwork():
             If None (default), all indices will be updated.
         :param activationFunction: The function to apply to the resulting step. For complex activation functions, use
             currying via lambda (e.g. `lambda X: torch.nn.Softmax(dim=0)(X)`)
+        :param scalingFactor: A scaling factor to multiply similarity measure by before passing into the activation function.
+            This can improve performance for interaction functions without inverses, such as RePOLY. 
+            If your interaction function has an inverse, this should have no effect and can be left as 1.0
         """
 
-        neuronMask = neuronMask if neuronMask is not None else torch.arange(X.shape[0])
-        neuronBatchSize = self.neuronBatchSize if self.neuronBatchSize is not None else X.shape[0]
+        neuronMask = neuronMask if neuronMask is not None else torch.arange(self.dimension)
+        neuronBatchSize = self.neuronBatchSize if self.neuronBatchSize is not None else self.dimension
         numNeuronBatches = np.ceil(neuronMask.shape[0] / neuronBatchSize).astype(int)
         neuronIndexBatches = torch.chunk(neuronMask, numNeuronBatches)
 
@@ -224,29 +228,27 @@ class ModernHopfieldNetwork():
                 for i, d in enumerate(neuronBatchIndices):
                     tiledBatchClampOn[d,i*currentItemBatchSize:(i+1)*currentItemBatchSize] = 1
                     tiledBatchClampOff[d,i*currentItemBatchSize:(i+1)*currentItemBatchSize] = -1
-                onSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOn)
-                offSimilarity = self.interactionFunction(self.memories.T @ tiledBatchClampOff)
+                onSimilarity = self.interactionFunction((scalingFactor / self.dimension) * (self.memories.T @ tiledBatchClampOn))
+                offSimilarity = self.interactionFunction((scalingFactor / self.dimension) * (self.memories.T @ tiledBatchClampOff))
                 
-                Y = activationFunction(torch.sum(onSimilarity-offSimilarity, axis=0))
-                Y = torch.reshape(Y, [neuronBatchNumIndices, currentItemBatchSize])
+                Y = activationFunction(torch.sum(onSimilarity-offSimilarity, axis=0)).reshape([neuronBatchNumIndices, currentItemBatchSize])
                 X[neuronBatchIndices[:, None], itemBatchIndices] = Y
 
     @torch.no_grad()
-    def relaxStates(self, X: torch.Tensor, maxIterations: int = 100, neuronMask: torch.Tensor = None, verbose: bool = False):
+    def relaxStates(self, X: torch.Tensor, maxIterations: int = 100, verbose: bool = False, **stepStates_kwargs):
         """
         Update the states some number of times.
 
         :param X: The tensor of states to step. 
             Tensor must be on the correct device and have shape (network.dimension, nStates)
         :param maxIterations: The integer number of iterations to update the states for.
-        :param neuronMask: A mask of neuron indices to update. If passed, only the specified indices are updated. Other indices will be clamped.
-            If None (default), all indices will be updated.
         :param verbose: Flag to show progress bar
+        :param stepStates_kwargs: Any additional keywords to pass directly to the stepStates call each epoch.
         """
         
         for _ in tqdm(range(maxIterations), desc="Relax States", disable=not verbose):
             X_prev = X.clone()
-            self.stepStates(X, neuronMask)
+            self.stepStates(X, **stepStates_kwargs)
             if torch.all(X_prev == X):
                 break
         
