@@ -1,0 +1,21 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: Hopfield Network PyTorch
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Hayden
+    family-names: McAlister
+    affiliation: University of Otago
+repository-code: 'https://github.com/hmcalister/Hopfield-Network-PyTorch'
+abstract: >-
+  An implementation of the classical and modern Hopfield
+  network using PyTorch
+keywords:
+  - Hopfield Network
+  - Modern Hopfield Network
+license: MIT
