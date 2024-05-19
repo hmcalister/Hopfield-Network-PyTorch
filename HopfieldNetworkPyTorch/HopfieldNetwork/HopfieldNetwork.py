@@ -5,15 +5,13 @@ import torch
 from .LearningRule import AbstractLearningRule
 
 class HopfieldNetwork():
-    def __init__(self, dimension: int, learningRule: AbstractLearningRule, torchDevice: str, itemBatchSize: int = None, neuronBatchSize: int = None):
+    def __init__(self, dimension: int, learningRule: AbstractLearningRule, torchDevice: str):
         """
         Create a new Hopfield Network of the specified dimension.
 
         :param dimension: The dimension of the network.
         :param learningRule: The learning rule. Must implement LearningRule.AbstractLearningRule
         :param torchDevice:  The pytorch device to store the memories on, e.g. "cpu" or "cuda".
-        :param itemBatchSize: Sets the batch size for items, i.e. how many items are processed at once. None (default) indicates no batching, process all items at once.
-        :param neuronBatchSize: Sets the batch size for neurons, i.e. how many neurons are processed at once. None (default) indicates no batching, process all neurons at once.
         """
 
         # The dimension of the network
