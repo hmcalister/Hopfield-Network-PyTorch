@@ -4,6 +4,17 @@ An implementation of the Hopfield Network using PyTorch for the linear algebra c
 
 This package provides a consistent API to both the traditional and modern Hopfield networks for autoassociative memory tasks. Using CUDA allows even large memory tasks to be trained and tested quickly using the GPU. 
 
+## Citation
+
+```python
+@article{McAlister2024HopfieldNetworkPyTorch,
+  title   = {Improved Robustness and Hyperparameter Selection in Modern Hopfield Networks},
+  author  = {McAlister, Hayden and Robins, Anthony and Szymanski, Lech},
+  journal = {arXiv preprint arXiv:}
+  year    = {2024}
+}
+```
+
 ## Installation
 
 Clone this repository, then `cd` into the project root directory. Run `pip install .` to install the package, or `pip install -e .` to install as editable (if you plan to make changes to the package).
