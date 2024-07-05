@@ -58,6 +58,7 @@ class ModernHopfieldNetwork():
                         finalTemperature: float = 1.0,
                         errorPower: int = 1,
                         precision: float = 1.0e-30,
+                        clampMemories: bool = True,
                         neuronMask: torch.Tensor = None,
                         verbose: int = 2,
                       ):
@@ -79,6 +80,7 @@ class ModernHopfieldNetwork():
         :param neuronMask: A mask of neuron indices to update during learning. 
             If passed, only the specified indices will be updated (have energy difference calculated). Other indices will be clamped.
             If None (default), all indices will be updated.
+        :param clampMemories: Boolean to clamp neuron values between -1 and 1 at each training step
         :param verbose: An integer to indicate verbosity
             - 0: No output by epoch
             - 1: A progress bar over the epochs
