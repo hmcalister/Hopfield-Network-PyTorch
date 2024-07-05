@@ -153,7 +153,7 @@ class ModernHopfieldNetwork():
                     maxGradMagnitude[maxGradMagnitude<precision] = precision
                     maxGradMagnitudeTiled = torch.tile(maxGradMagnitude, (self.dimension, 1))
                     self.memories -= learningRate * memoryGrads / maxGradMagnitudeTiled
-                    self.memories = self.memories.clamp_(-1,1)
+                    if clampMemories: self.memories = self.memories.clamp_(-1,1)
                     self.memories.grad = None
                     epochTotalLoss += itemBatchLoss.item() / (neuronMask.shape[0] * itemIndices.shape[0])
 
