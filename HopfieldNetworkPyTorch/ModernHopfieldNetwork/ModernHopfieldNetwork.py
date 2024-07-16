@@ -47,7 +47,7 @@ class ModernHopfieldNetwork():
         """
         if memories.shape != self.memories.shape:
             raise ValueError("memories should have shape (network.dimension, nMemories)")
-        self.memories = memories.requires_grad_().to(self.memories.device)
+        self.memories = memories.to(self.memories.device).requires_grad_()
     
     def learnMemories(self, X: torch.Tensor,
                         maxEpochs: int = 100,
