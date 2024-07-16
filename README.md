@@ -10,7 +10,8 @@ This package provides a consistent API to both the traditional and modern Hopfie
 @article{McAlister2024HopfieldNetworkPyTorch,
   title   = {Improved Robustness and Hyperparameter Selection in Modern Hopfield Networks},
   author  = {McAlister, Hayden and Robins, Anthony and Szymanski, Lech},
-  journal = {arXiv preprint arXiv:}
+  journal = {arXiv preprint arXiv}
+  url     = {https://arxiv.org/abs/2407.08742},
   year    = {2024}
 }
 ```
