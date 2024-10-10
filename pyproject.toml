@@ -1,0 +1,18 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "HopfieldNetworkPyTorch"
+version = "0.1"
+description = "An implementation of the Hopfield network and Modern Hopfield Network using PyTorch"
+readme = "README.md"
+license = {file = "LICENSE"}
+authors = [
+  {name = "Hayden McAlister"}
+]
+dependencies = [
+  "torch",
+  "numpy",
+  "tqdm"
+]
