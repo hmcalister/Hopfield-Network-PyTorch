@@ -1,12 +1,10 @@
-from tqdm import tqdm
 import torch
-
-from . import AbstractLearningRule, HebbianLearningRule
+from .AbstractLearningRule import AbstractLearningRule
 from .. import HopfieldNetwork
 
 
 class DeltaLearningRule(AbstractLearningRule):
-    def __init__(self, network, learningRate: float=1, maxEpochs: int = 100):
+    def __init__(self, network: HopfieldNetwork, learningRate: float=1, maxEpochs: int = 100):
         super().__init__(learningRate, maxEpochs)
         self.network: HopfieldNetwork = network
 
