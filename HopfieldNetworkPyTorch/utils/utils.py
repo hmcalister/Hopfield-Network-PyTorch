@@ -14,7 +14,7 @@ def createBipolarStates(dimension: int, numStates: int) -> torch.Tensor:
     X = 2*torch.bernoulli(X)-1
     return X
 
-def BipolarHeaviside(X: torch.tensor) -> torch.Tensor:
+def BipolarHeaviside(X: torch.Tensor) -> torch.Tensor:
     X = torch.sign(X)
     X[X==0] = -1.0
     return X
