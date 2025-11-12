@@ -31,8 +31,9 @@ class HopfieldNetwork():
         :param X torch.Tensor: The states to train on, a tensor of shape (network.dimension, numStates).
             This tensor is left untouched by the function call, if needed it is cloned. Do not clone it yourself.
         """
-    
-        self.weightMatrix += self.learningRule(X)
+
+        for epoch in range(self.learningRule.maxEpochs):
+            self.weightMatrix += self.learningRule(X)
 
     def energy(self, X: torch.Tensor) -> torch.Tensor:
         """
@@ -48,7 +49,7 @@ class HopfieldNetwork():
         stateEnergies = -0.5 * torch.mul(X, stateFields)
         return stateEnergies
 
-    def stable(self, X: torch.tensor) -> torch.Tensor:
+    def stable(self, X: torch.Tensor) -> torch.Tensor:
         """
         Calculate the stability of each state given.
         Stability is determined by checking the energy of each neuron in a state. If any of the neurons in a state are unstable (E>0) that state is unstable.
@@ -57,9 +58,9 @@ class HopfieldNetwork():
         :returns torch.Tensor: A (numStates) tensor of booleans with each entry the stability of a state.
         """
         
-        return torch.all(self.energy(X)<=0, axis=0)
+        return torch.all(self.energy(X)<=0, dim=0)
 
-    def stepStates(self, X: torch.Tensor, neuronMask: torch.Tensor = None,):
+    def stepStates(self, X: torch.Tensor, neuronMask: torch.Tensor | None = None,):
         """
         Step the given states by updating all neurons once.
         Note the tensor given is updated in place, so clone the tensor beforehand if required.
@@ -80,7 +81,7 @@ class HopfieldNetwork():
         
     def relaxStates(self, X: torch.Tensor, 
                     maxIterations: int=100, 
-                    neuronMask: torch.Tensor = None,
+                    neuronMask: torch.Tensor | None = None,
                     verbose: bool = False,
                     ):
         """
