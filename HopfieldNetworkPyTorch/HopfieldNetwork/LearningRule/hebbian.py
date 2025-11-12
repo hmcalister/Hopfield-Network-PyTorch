@@ -3,8 +3,8 @@ from . import AbstractLearningRule
 import torch
 
 class HebbianLearningRule(AbstractLearningRule):
-    def __init__(self):
-        super().__init__(learningRate=1, maxEpochs=1)
+    def __init__(self, learningRate: int = 1, maxEpochs: int = 1):
+        super().__init__(learningRate, maxEpochs)
 
     def __call__(self, states: torch.Tensor) -> torch.Tensor:
         weightMatrix = states @ states.T
