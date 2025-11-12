@@ -2,8 +2,9 @@ from abc import ABC, abstractmethod
 import torch
 
 class AbstractLearningRule(ABC):
-    def __init__(self):
-        pass
+    def __init__(self, learningRate: float, maxEpochs: int):
+        self.learningRate = learningRate
+        self.maxEpochs = maxEpochs
     
     @abstractmethod
     def __call__(self, states: torch.Tensor) -> torch.Tensor:
