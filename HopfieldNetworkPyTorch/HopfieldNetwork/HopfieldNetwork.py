@@ -23,7 +23,7 @@ class HopfieldNetwork():
         # Initialize the weight matrix to zeros
         self.weightMatrix = torch.zeros(size=(dimension, dimension), dtype=torch.float64).to(torchDevice)
 
-    def learnMemories(self, X: torch.Tensor):
+    def learnMemories(self, X: torch.Tensor, verbose: bool = False,):
         """
         Train the network on the given states.
         Note before training the network, the user must manually set the value of network.learningRule to something OTHER than AbstractLearningRule.
@@ -32,8 +32,10 @@ class HopfieldNetwork():
             This tensor is left untouched by the function call, if needed it is cloned. Do not clone it yourself.
         """
 
+        epochsProgressbar = tqdm(total=self.learningRule.maxEpochs, desc="Learn States", disable=not verbose)
         for epoch in range(self.learningRule.maxEpochs):
             self.weightMatrix += self.learningRule(X)
+            epochsProgressbar.update(1)
 
     def energy(self, X: torch.Tensor) -> torch.Tensor:
         """
