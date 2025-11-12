@@ -38,7 +38,7 @@ class HopfieldNetwork():
     def energy(self, X: torch.Tensor) -> torch.Tensor:
         """
         Calculate the energy of the given states. 
-        Energy is given by $-0.5 W \dot X \otimes X$, i.e. the field of each neuron ($W \dot X$) elementwise multiplied by the state.
+        Energy is given by $-0.5 W \\dot X \\otimes X$, i.e. the field of each neuron ($W \\dot X$) elementwise multiplied by the state.
         Note the energy is negative if the neuron is stable.
 
         :param X torch.Tensor: The states to train on, a tensor of shape (network.dimension, numStates).
