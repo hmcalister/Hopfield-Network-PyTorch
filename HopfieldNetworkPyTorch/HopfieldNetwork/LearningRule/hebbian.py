@@ -8,6 +8,5 @@ class HebbianLearningRule(AbstractLearningRule):
 
     def __call__(self, states: torch.Tensor) -> torch.Tensor:
         weightMatrix = states @ states.T
-        weightMatrix = self._cleanupStep(weightMatrix)
-        return weightMatrix
+        return self._cleanup(weightMatrix, states)
     

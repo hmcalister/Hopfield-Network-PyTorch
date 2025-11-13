@@ -15,13 +15,15 @@ class AbstractLearningRule(ABC):
         :returns torch.Tensor: The weight matrix update.
         """
         pass
-    
-    def _cleanupStep(self, matrix: torch.Tensor) -> torch.Tensor:
+
+    def _cleanup(self, matrix: torch.Tensor, states: torch.Tensor):
         matrix = matrix.fill_diagonal_(0)
         # matrix = (matrix + matrix.T) / 2
 
-        matrixNorm = torch.max(matrix.abs())
+        matrixNorm = states.shape[1]
+        # matrixNorm = torch.max(matrix.abs())
         # matrixNorm = matrix.abs().sum()
         if matrixNorm > 0:
             matrix /= matrixNorm
         return matrix
+    

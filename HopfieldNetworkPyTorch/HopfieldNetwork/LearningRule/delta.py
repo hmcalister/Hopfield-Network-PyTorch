@@ -12,4 +12,4 @@ class DeltaLearningRule(AbstractLearningRule):
         steppedStates = torch.clone(states)
         self.network.stepStates(steppedStates)
         weightMatrixUpdate = self.learningRate * (states-steppedStates)@states.T
-        return self._cleanupStep(weightMatrixUpdate)
+        return self._cleanup(weightMatrixUpdate, states)
