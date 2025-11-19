@@ -7,6 +7,6 @@ class HebbianLearningRule(AbstractLearningRule):
         super().__init__(learningRate, maxEpochs)
 
     def __call__(self, states: torch.Tensor) -> torch.Tensor:
-        weightMatrix = states @ states.T
+        weightMatrix = self.learningRate * (states @ states.T)
         return self._cleanup(weightMatrix, states)
     
